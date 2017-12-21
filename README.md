@@ -3,9 +3,9 @@ Automated Configuration as Code deployment using GitHub Webhook to iControl LX W
 
 ## Description
 
-F5 has discovered customer interest in automated Configuration-as-Code models. Through the use of GitHub Webhooks, engineers may 'commit' service descriptions to a 'deployment' repo, which results in F5 BIG-IP configurations. Thus, GitHub is provided a familiar developer interface (SCM) with demployment templates, which results in deployed configurations on unfamiliar technology like F5's BIG-IP application delivery controller.
+F5 has discovered customer interest in automated Configuration-as-Code models. Through the use of GitHub Webhooks, engineers may 'commit' service definitions to a 'deployment' repository, which results in F5 BIG-IP configurations. With this model, GitHub is providing a familiar developer interface (SCM) with "deployment configuration templates", which result in deployed configurations on technology typically unfamiliar to the engineer, like F5's BIG-IP application delivery controller.
 
-The config description 'commit' may be either JSON or YAML configuration data which, via a GitHub webhook, is communicated to an F5 iControl LX worker (a declarative interface). The iControl LX worker translates the [JSON|YAML] payload into a BIG-IP service configuration.
+The service definition 'commit' may be either JSON or YAML configuration data which, via a GitHub webhook, is communicated to an F5 iControl LX worker (a custom declarative interface within the BIG-IP REST API). The iControl LX worker translates the [JSON|YAML] service definition payload into a BIG-IP service configuration.
 
 **Concepts**
 
