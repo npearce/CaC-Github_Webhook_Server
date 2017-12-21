@@ -7,10 +7,12 @@ F5 has discovered customer interest in automated Configuration-as-Code models. T
 
 The service definition 'commit' may be either JSON or YAML configuration data which, via a GitHub webhook, is communicated to an F5 iControl LX worker (a custom declarative interface within the BIG-IP REST API). The iControl LX worker translates the [JSON|YAML] service definition payload into a BIG-IP service configuration.
 
-**Concepts**
+### Concepts
 
 **iControl** - The F5 BIG-IP REST API.
+
 **iControl LX** - (iControl Language eXtension) The F5 BIG-IP REST API Framework, upon which customers/partners can create their own custom endpoints/workflows.
+
 **iControl LX worker/microservice** - Some Javascript that is executed every time it's custom endpoint is hit with GET/POST/PUT/PATCH/DELETE.
 
 ## Workflow
