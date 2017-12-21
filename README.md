@@ -24,43 +24,44 @@ The service definition 'commit' may be either JSON or YAML configuration data wh
   2. If the message is "removed", there is no requirement to retrieve the data from GitHub and the service configuration is immediately removed form the BIG-IP device.
 
 
-## Example template
+## Example template - JSON
 Example Service Template, where engineer would replace the values in `{{}}`:
 
 ```
 {
   "name": "{{example-f5-http-lb}}",
-  "tenantTemplateReference": {
-    "link": "https://localhost/mgmt/cm/cloud/tenant/templates/iapp/f5-http-lb"
-  },
-  "vars": [
+  "external_addr": "{{x.x.x.x}}",
+  "external_port": "{{443}}",
+  "backend": [
     {
-      "name": "pool__addr",
-      "value": "{{appsvcs_vip_addr}}"
+      "server1_addr": "{{x.x.x.x}}",
+      "server1_port": "{{8080}}"
     },
     {
-      "name": "pool__port",
-      "value": "{{appsvcs_vip_port}}"
+      "server2_addr": "{{x.x.x.x}}",
+      "server2_port": "{{8080}}"
     }
   ],
-  "tables": [
+  "properties": [
     {
-      "name": "pool__Members",
-      "columns": [
-        "IPAddress",
-        "State"
-      ],
-      "rows": [
-        [
-          "{{appsvcs_member1_addr}}",
-          "enabled"
-        ],
-        [
-          "{{appsvcs_member2_addr}}",
-          "enabled"
-        ]
-      ]
+      "lb_distribution": "{{least-connections}}",
+      "persistence": "{{cookie-perisist}}"
     }
   ]
 }
+```
+
+## Example template - YAML
+```
+name: "{{example-f5-http-lb}}"
+external_addr: "{{x.x.x.x}}"
+external_port: "{{443}}"
+backend:
+- server1_addr: "{{x.x.x.x}}"
+  server1_port: "{{8080}}"
+- server2_addr: "{{x.x.x.x}}"
+  server2_port: "{{8080}}"
+properties:
+- lb_distribution: "{{least-connections}}"
+  persistence: "{{cookie-perisist}}"
 ```
