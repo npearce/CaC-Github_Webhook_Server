@@ -1,0 +1,21 @@
+{
+  "name": "{{example-f5-http-lb}}",
+  "external_addr": "{{x.x.x.x}}",
+  "external_port": "{{443}}",
+  "backend": [
+    {
+      "server1_addr": "{{x.x.x.x}}",
+      "server1_port": "{{8080}}"
+    },
+    {
+      "server2_addr": "{{x.x.x.x}}",
+      "server2_port": "{{8080}}"
+    }
+  ],
+  "properties": [
+    {
+      "lb_distribution": "{{least-connections}}",
+      "persistence": "{{cookie-perisist}}"
+    }
+  ]
+}
