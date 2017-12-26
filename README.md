@@ -50,6 +50,7 @@ GHE_IaC_WebHook
     |- README.md
     |- INSTALL.md
     |- BIG-IP_WebHook_Server-1.0-000.rpm
+    |- device_onboarding_worker.rpm
 ```
 
 * `TEMPLATES` - containers templates for device on-boarding and for service deployments.
@@ -57,6 +58,12 @@ GHE_IaC_WebHook
 * `DEVICES\STATS` - WebHook server posts device utilization data here.
 * `SERVICES` -  contains the services deployed upon the Infrastructure.
 * `GHE_BIG-IP_WebHook` - the WebHook server to install on BIG-IPs for IaC management.
+
+<!-- Device on-boarding/reset worker:
+Docs: https://devcentral.f5.com/wiki/DevOps.HowToSamples_bigip_settings_reset.ashx
+Download: https://devcentral.f5.com/d/f5-devops-library-provisioning-230
+-->
+
 
 
 ## WebHook functions
