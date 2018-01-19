@@ -1,16 +1,17 @@
 var logger = require('f5-logger').getInstance();
 var http = require('http');
-var GheFetch = require('/var/config/rest/iapps/WEBHOOK/nodejs/ghe_fetch.js');
-//var ghe_deploy = require('ghe_deploy');
-//var ghe_modify = require('ghe_moify');
-//var ghe_delete = require('ghe_delete');
-var GHE_ACCESS_TOKEN = "a8d06939012d06a8c51633aae584b66655ee2c7a";
+var GheFetch = require('./ghe_fetch.js');
+//var AppServiceDeploy = require('service_deploy');
+//var AppServiceModify = require('service_modify');  -  Move to ghe_fetch
+//var AppServiceDelete = require('service_delete');
+//var DeviceDeploy = require('device_deploy');
 
+GHE_ACCESS_TOKEN = "XXXXX";
+// TODO Make these a persisted state configured via POST.
+GHE_IP_ADDR = "XXXX";   // AWS Lab IP
 
 var results; //temporary...
 
-// TODO Make this a persisted state configured via POST.
-GHE_IP_ADDR = "54.176.177.181";   // AWS Lab IP
 
 /**
  * A simple iControlLX extension that handles only HTTP GET
@@ -23,23 +24,18 @@ GheListener.prototype.isPublic = true;
 GheListener.prototype.onStart = function(success, error) {
 
   logger.info("GitHub Enterprise WebHook Server: onStart()...");
-
-// Fetch data from GitHub enterprise
-  GheFetch.getServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, '/raw/iacorg/iac_bigip/master/README.md', function (fetched) {
-    logger.info("GheListener Fetched README.md: " +fetched);
-  });
-
   success();
 
 };
-
 
 /**
  * handle onGet HTTP request
  */
 GheListener.prototype.onGet = function(restOperation) {
+
   restOperation.setBody(JSON.stringify( { value: "GheListener: " +GheListener.prototype.WORKER_URI_PATH+ ": Hello World!" } ));
   this.completeRestOperation(restOperation);
+
 };
 
 /**
@@ -49,52 +45,66 @@ GheListener.prototype.onPost = function(restOperation) {
 
   var gheMessage = restOperation.getBody();
 
-// Is it YAML or JSON?
-// TODO implement 'try { JSON.parse }' else check if YAML...
-
-  logger.info("Received: "+JSON.stringify(gheMessage, ' ', '\t')+ "\n\n");
-
-  var gheCommitAdded = [];
-  var gheCommitModified = [];
-  var gheCommitDeleted = [];
+//  logger.info("Received stringified: "+JSON.stringify(restOperation.getBody(), ' ', '\t')+ "\n\n");
+  logger.info("Activity from repository: " +gheMessage.repository.name);
 
   // Check we have a webhook added|modified|removed message
   for (var i in gheMessage.commits) {
 
-// Build an array of the GHE 'added' commits
-    if ((gheMessage.commits[i].added.length > 0) && (gheMessage.commits[i].added[0].startsWith("deploy"))) {
+    if (gheMessage.commits[i].added.length > 0) {
 
-      gheCommitAdded.push(gheMessage.commits[i].added);
+      logger.info("Found an 'addition': " +gheMessage.commits[i].added);
+      let addedFile = gheMessage.commits[i].added.toString();
 
-// TODO Validate (from GitLabs) with GHE. Are we constructing the right path?
-//      var pathToAddedJson = "/"+newState.project.path_with_namespace+"/raw/"+newState.project.default_branch+"/"+newState.commits[i].added;
-      logger.info("gheCommitAdded[]: " +gheCommitAdded);
+      logger.info("Building path: addedAppServicePath - " +addedAppServicePath);
+      let addedAppServicePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+addedFile;
+
+      // Is this a Device Definition, Service Definition, or junk?
+      if (addedFile.startsWith("SERVICE")) {
+        logger.info("This is a 'SERVICE' definition: " +addedFile);
+        // Hand off to GheFetch Service Definition from GitHub enterprise
+        GheFetch.getAddedServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath);
+      }
+      else if (addedFile.startsWith("DEVICE")) {
+        logger.info("This is a 'DEVICE' definition: " +addedFile);
+        //TODO Enable Device level config settings
+      }
+      else {
+        logger.info("Not a DEVICE or SERIVICE definition. Ignoring: " +addedFile);
+      }
     }
 
-// Build an array of the GHE 'modified' commits
-    if ((gheMessage.commits[i].modified.length > 0) && (gheMessage.commits[i].modified[0].startsWith("deploy"))) {
+    if (gheMessage.commits[i].modified.length > 0) {
 
-      gheCommitModified.push(gheMessage.commits[i].modified);
+      logger.info("Found a 'modification': " +gheMessage.commits[i].modified);
+      var modifiedFile = gheMessage.commits[i].modified.toString();
 
-//TODO Must capture the deployed service end-point for the PUT
-// TODO Validate (from GitLabs) with GHE. Are we constructing the right path?
-//      var pathToModifiedJson = "/"+newState.project.path_with_namespace+"/raw/"+newState.project.default_branch+"/"+newState.commits[i].modified;
-  //    logger.info("Modified pathToModifiedJson: " +pathToModifiedJson);
+      logger.info("Building path: modifiedAppServicePath - " +modifiedAppServicePath);
+      var modifiedAppServicePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+modifiedFile;
 
-      logger.info("gheCommitModified[]: " +gheCommitModified);
+      // Hand off to GheFetch Service Definition from GitHub enterprise
+      if (modiiedFile.startsWith("SERVICE")) {
+        logger.info("This is a 'SERVICE' definition: " +modifiedFile);
+        // Hand off to GheFetch Service Definition from GitHub enterprise
+        GheFetch.getModifiedServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, modifiedAppServicePath);
+      }
+      else if (modifiedFile.startsWith("DEVICE")) {
+        logger.info("This is a 'DEVICE' definition: " +modifiedFile);
+        //TODO Enable Device level config settings
+      }
+      else {
+        logger.info("Not a DEVICE or SERIVICE definition. Ignoring: " +modifiedFile);
+      }
+
     }
 
 // Build an array of the GHE 'removed' commits
-    if ((gheMessage.commits[i].removed.length > 0)  && (gheMessage.commits[i].removed[0].startsWith("deploy")))  {
+    if (gheMessage.commits[i].removed.length > 0)  {
 
-// TODO could this just be if (gheMessage.commits[i].removed) {...  ?
-      gheCommitDeleted.push(gheMessage.commits[i].removed);
+      logger.info("Found an 'addition': " +gheMessage.commits[i].removed);
 
-// TODO Validate (from GitLabs) with GHE. Are we constructing the right path?
-//      var pathToRemovedJson = "/"+newState.project.path_with_namespace+"/raw/"+newState.project.default_branch+"/"+newState.commits[i].removed;
-//      logger.info("Deleting: " +pathToRemovedJson);
-//      var parts = newState.commits[i].removed[0].split('.');
-//      var serviceName = parts[0];
+      // Hand off to GheFetch Service Definition from GitHub enterprise
+      GheRemove.getModifiedServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, gheMessage.commits[i].modified);
 
     logger.info("gheCommitDeleted[]: " +gheCommitDeleted);
     }
