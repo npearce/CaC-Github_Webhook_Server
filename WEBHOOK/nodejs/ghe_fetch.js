@@ -9,7 +9,7 @@ function GheFetch() {}
 /**
  * Fetches data from GitHub Enterprise
  */
-GheFetch.getAddedServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath) {
+GheFetch.getServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath) {
 
   GheFetch.getGheDownloadUrl(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath, function (download_url) {
 
@@ -45,15 +45,52 @@ GheFetch.getAddedServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, ad
 
 }
 
-GheFetch.getGheDownloadUrl = function(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath, download_url) {
+GheFetch.getDeletedServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, deletedFilePath) {
 
-  logger.info("GheFetch.getGheDownloadUrl() fetching " +addedAppServicePath+ " from: " +GHE_IP_ADDR);
+  GheFetch.getGheDownloadUrl(GHE_IP_ADDR, GHE_ACCESS_TOKEN, deletedFilePath, function (download_url) {
+
+    logger.info("GheFetch.getGheDownloadUrl fetched URL: " +download_url+ "\n Fetching Deleted Service Definition (from back in time)...");
+
+    var options = {
+      "method": "GET",
+      "hostname": GHE_IP_ADDR,
+      "port": 443,
+      "path": download_url,
+      "headers": {
+        "cache-control": "no-cache",
+        "authorization": "Bearer " +GHE_ACCESS_TOKEN
+      }
+    };
+
+    var req = http.request(options, function (res) {
+      var chunks = [];
+      res.on("data", function (chunk) {
+        chunks.push(chunk);
+      });
+      res.on("end", function () {
+        var body = Buffer.concat(chunks);
+        results = body.toString();
+        logger.info("GheFetch.getDeletedServiceDefinition() - return results: " +results);
+      });
+    }).on("error", function (err) {
+      logger.info("GheFetch.getServiceDefinition: Error: " +err);
+    });
+    req.end();
+
+  });
+
+}
+
+
+GheFetch.getGheDownloadUrl = function(GHE_IP_ADDR, GHE_ACCESS_TOKEN, objectPath, download_url) {
+
+  logger.info("GheFetch.getGheDownloadUrl() fetching " +objectPath+ " from: " +GHE_IP_ADDR);
 
   var options = {
     "method": "GET",
     "hostname": GHE_IP_ADDR,
     "port": 443,
-    "path": addedAppServicePath,
+    "path": objectPath,
     "headers": {
       "cache-control": "no-cache",
       "authorization": "Bearer " +GHE_ACCESS_TOKEN
@@ -69,7 +106,6 @@ GheFetch.getGheDownloadUrl = function(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppSer
       var body = Buffer.concat(chunks);
       results = body.toString();
 
-//      logger.info("GheFetch.getGheDownloadUrl() - return results: " +JSON.stringify(JSON.parse(results), '', '\t'));
       let parsed_results = JSON.parse(results);
 
       logger.info("GheFetch.getGheDownloadUrl() - parsed_results.download_url " +parsed_results.download_url);

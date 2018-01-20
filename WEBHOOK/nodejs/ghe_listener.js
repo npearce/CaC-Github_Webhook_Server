@@ -6,15 +6,15 @@ var GheFetch = require('./ghe_fetch.js');
 //var AppServiceDelete = require('service_delete');
 //var DeviceDeploy = require('device_deploy');
 
-GHE_ACCESS_TOKEN = "XXXXX";
+GHE_ACCESS_TOKEN = "XXX";
 // TODO Make these a persisted state configured via POST.
-GHE_IP_ADDR = "XXXX";   // AWS Lab IP
+GHE_IP_ADDR = "XXX";   // AWS Lab IP
 
 var results; //temporary...
 
 
 /**
- * A simple iControlLX extension that handles only HTTP GET
+ * A simple iControl LX worker that handles only HTTP GET
  */
 function GheListener() {}
 
@@ -53,17 +53,17 @@ GheListener.prototype.onPost = function(restOperation) {
 
     if (gheMessage.commits[i].added.length > 0) {
 
-      logger.info("Found an 'addition': " +gheMessage.commits[i].added);
       let addedFile = gheMessage.commits[i].added.toString();
 
-      logger.info("Building path: addedAppServicePath - " +addedAppServicePath);
-      let addedAppServicePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+addedFile;
+      var addedFilePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+addedFile;
+      logger.info("Building path: addedFilePath - " +addedFilePath);
 
       // Is this a Device Definition, Service Definition, or junk?
       if (addedFile.startsWith("SERVICE")) {
         logger.info("This is a 'SERVICE' definition: " +addedFile);
+
         // Hand off to GheFetch Service Definition from GitHub enterprise
-        GheFetch.getAddedServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath);
+        GheFetch.getServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedFilePath);
       }
       else if (addedFile.startsWith("DEVICE")) {
         logger.info("This is a 'DEVICE' definition: " +addedFile);
@@ -76,17 +76,16 @@ GheListener.prototype.onPost = function(restOperation) {
 
     if (gheMessage.commits[i].modified.length > 0) {
 
-      logger.info("Found a 'modification': " +gheMessage.commits[i].modified);
-      var modifiedFile = gheMessage.commits[i].modified.toString();
+      let modifiedFile = gheMessage.commits[i].modified.toString();
 
-      logger.info("Building path: modifiedAppServicePath - " +modifiedAppServicePath);
-      var modifiedAppServicePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+modifiedFile;
+      var modifiedFilePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+modifiedFile;
+      logger.info("Building path: modifiedFilePath - " +modifiedFilePath);
 
-      // Hand off to GheFetch Service Definition from GitHub enterprise
-      if (modiiedFile.startsWith("SERVICE")) {
+      // Is this a Device Definition, Service Definition, or junk?
+      if (modifiedFile.startsWith("SERVICE")) {
         logger.info("This is a 'SERVICE' definition: " +modifiedFile);
         // Hand off to GheFetch Service Definition from GitHub enterprise
-        GheFetch.getModifiedServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, modifiedAppServicePath);
+        GheFetch.getServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, modifiedFilePath);
       }
       else if (modifiedFile.startsWith("DEVICE")) {
         logger.info("This is a 'DEVICE' definition: " +modifiedFile);
@@ -101,21 +100,39 @@ GheListener.prototype.onPost = function(restOperation) {
 // Build an array of the GHE 'removed' commits
     if (gheMessage.commits[i].removed.length > 0)  {
 
-      logger.info("Found an 'addition': " +gheMessage.commits[i].removed);
+      logger.info("Found a 'deletion': " +gheMessage.commits[i].removed);
 
-      // Hand off to GheFetch Service Definition from GitHub enterprise
-      GheRemove.getModifiedServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, gheMessage.commits[i].modified);
+      let deletedFile = gheMessage.commits[i].removed.toString();
 
-    logger.info("gheCommitDeleted[]: " +gheCommitDeleted);
+      // As the file has been deleted we must retrieve the service definition from the previous commit using 'gheMessage.before'.
+
+      let previousCommit = gheMessage.before;
+      var deletedFilePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+deletedFile+"?ref="+previousCommit;
+
+      logger.info("Building path: deletedFilePath - " +deletedFilePath+ "\nUsing previousCommit: " +previousCommit);
+
+      if (deletedFile.startsWith("SERVICE")) {
+        logger.info("This is a 'SERVICE' definition: " +deletedFile);
+
+        //TODO how do we get the service name when the file is deleted? commit log?
+        logger.info("Received stringified: "+JSON.stringify(restOperation.getBody(), ' ', '\t')+ "\n\n");
+
+        // Hand off to GheFetch Service Definition from GitHub enterprise
+        GheFetch.getDeletedServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, deletedFilePath);
+      }
+      else if (deletedFile.startsWith("DEVICE")) {
+        logger.info("This is a 'DEVICE' definition: " +deletedFile);
+        // Hand off to GheFetch Service Definition from GitHub enterprise
+        //TODO Use device-reset worker.
+      }
+      else {
+        logger.info("Not a DEVICE or SERIVICE definition. Ignoring: " +deletedFile);
+      }
     }
   }
 
-  // for added/modified, iterate through array using 'ghe_fetch.js' to get the paylaods.
-
-
-
 // Respond to GHE WebHook Client
-  restOperation.setBody("Thanks!");
+  restOperation.setBody("Thanks, GitHub Enterprise!");
   restOperation.setStatusCode('200');
   restOperation.setContentType('text');
   this.completeRestOperation(restOperation);
@@ -123,7 +140,7 @@ GheListener.prototype.onPost = function(restOperation) {
 
 
 //NOTE getJsonFromGitlab moved to ghe_fetch.js
-
+//NOTE deployService will be moved to service_deploy.js
 
 function deployService(serviceName, serviceInputs, cb) {
 
@@ -162,6 +179,8 @@ function deployService(serviceName, serviceInputs, cb) {
   req.end();
 
 }
+
+//NOTE modifyService will be moved to service_modify.js
 
 function modifyService(serviceName, serviceInputs, gen, cb) {
   logger.info("modifyService()");
@@ -205,6 +224,8 @@ function modifyService(serviceName, serviceInputs, gen, cb) {
   req.end();
 }
 
+//NOTE deleteService will be moved to service_delete.js
+
 function deleteService(serviceName, cb) {
 
   logger.info("deleteService() - serviceName: " +serviceName);
@@ -243,6 +264,8 @@ function deleteService(serviceName, cb) {
   req.end();
 }
 
+//NOTE retreiveGeneration will be moved to service_modify.js
+
 function retreiveGeneration(serviceName, cb)  {
 
   var options = {
@@ -275,6 +298,8 @@ function retreiveGeneration(serviceName, cb)  {
   req.end();
 }
 
+
+//NOTE getClouds will become device_deploy.js
 
 function getClouds(cb)  {
   //get a list of iWorkflow Cloud names, descriptions, and UUIDs
@@ -317,6 +342,8 @@ function getClouds(cb)  {
 
   req.end();
 }
+
+//NOTE postClouds will become device_deploy.js
 
 function postClouds(data, results)  {
   //post the cloud names, descriptions, and UUIDs to GitLabs
