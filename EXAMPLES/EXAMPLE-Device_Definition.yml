@@ -1,0 +1,25 @@
+---
+mgmt_network:
+  mgmt_interface: eth0
+  mgmt_addr: x.x.x.x
+  mgmt_gateway: x.x.x.x
+dataplane_networks:
+- network1_name: api_gateway
+  network1_interface: '1.1'
+  network1_addr: x.x.x.x
+- network2_name: internet
+  network1_interface: '1.2'
+  network1_addr: x.x.x.x
+device_settings:
+  ntp:
+  - x.x.x.x
+  - x.x.x.x
+  dns:
+    dns_search: xyz.internal
+    dns_addresses:
+    - x.x.x.x
+    - x.x.x.x
+  syslog:
+    syslog_addresses:
+    - x.x.x.x
+    - x.x.x.x
