@@ -1,30 +1,35 @@
+/*
+*   GheListener:
+*     GitHub Enterprise webhook message router.
+*
+*   N. Pearce, February 2018
+*   http://github.com/npearce
+*
+*/
+
 var logger = require('f5-logger').getInstance();
 var http = require('http');
 var GheFetch = require('./ghe_fetch.js');
-//var AppServiceDeploy = require('service_deploy');
-//var AppServiceModify = require('service_modify');  -  Move to ghe_fetch
-//var AppServiceDelete = require('service_delete');
-//var DeviceDeploy = require('device_deploy');
-
-GHE_ACCESS_TOKEN = "XXX";
-// TODO Make these a persisted state configured via POST.
-GHE_IP_ADDR = "XXX";   // AWS Lab IP
 
 var results; //temporary...
 
-
-/**
- * A simple iControl LX worker that handles only HTTP GET
- */
 function GheListener() {}
 
-GheListener.prototype.WORKER_URI_PATH = "shared/iac/ghe_listener";
+GheListener.prototype.WORKER_URI_PATH = "shared/n8/ghe_listener";
 GheListener.prototype.isPublic = true;
 
 GheListener.prototype.onStart = function(success, error) {
 
   logger.info("GitHub Enterprise WebHook Server: onStart()...");
-  success();
+  const GHE_IP_ADDR = process.env.GHE_IP_ADDR;
+  const GHE_ACCESS_TOKEN = process.env.GHE_ACCESS_TOKEN;
+
+  if (GHE_IP_ADDR && GHE_ACCESS_TOKEN) {
+    success();
+  }
+  else {
+    error('GHE Webhook Server requires IP Address, and Access Token.');
+  }
 
 };
 
@@ -33,6 +38,7 @@ GheListener.prototype.onStart = function(success, error) {
  */
 GheListener.prototype.onGet = function(restOperation) {
 
+//TODO Show config (Device ID, GHE IP Address, GHE Token, etc.)
   restOperation.setBody(JSON.stringify( { value: "GheListener: " +GheListener.prototype.WORKER_URI_PATH+ ": Hello World!" } ));
   this.completeRestOperation(restOperation);
 
@@ -44,25 +50,22 @@ GheListener.prototype.onGet = function(restOperation) {
 GheListener.prototype.onPost = function(restOperation) {
 
   var gheMessage = restOperation.getBody();
-
-//  logger.info("Received stringified: "+JSON.stringify(restOperation.getBody(), ' ', '\t')+ "\n\n");
   logger.info("Activity from repository: " +gheMessage.repository.name);
 
-  // Check we have a webhook added|modified|removed message
+  // Iterate through commit messages to handle added|modified|removed definitions
   for (var i in gheMessage.commits) {
 
+    // Handle new device/service definitions.
     if (gheMessage.commits[i].added.length > 0) {
 
       let addedFile = gheMessage.commits[i].added.toString();
-
       var addedFilePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+addedFile;
       logger.info("Building path: addedFilePath - " +addedFilePath);
 
-      // Is this a Device Definition, Service Definition, or junk?
       if (addedFile.startsWith("SERVICE")) {
         logger.info("This is a 'SERVICE' definition: " +addedFile);
 
-        // Hand off to GheFetch Service Definition from GitHub enterprise
+        // Hand off to GheFetch.getServiceDefinition to fetch Service Data
         GheFetch.getServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedFilePath);
       }
       else if (addedFile.startsWith("DEVICE")) {
@@ -74,16 +77,17 @@ GheListener.prototype.onPost = function(restOperation) {
       }
     }
 
+    // Handle modified device/service definitions.
     if (gheMessage.commits[i].modified.length > 0) {
 
       let modifiedFile = gheMessage.commits[i].modified.toString();
-
       var modifiedFilePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+modifiedFile;
       logger.info("Building path: modifiedFilePath - " +modifiedFilePath);
 
       // Is this a Device Definition, Service Definition, or junk?
       if (modifiedFile.startsWith("SERVICE")) {
         logger.info("This is a 'SERVICE' definition: " +modifiedFile);
+
         // Hand off to GheFetch Service Definition from GitHub enterprise
         GheFetch.getServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, modifiedFilePath);
       }
@@ -94,36 +98,29 @@ GheListener.prototype.onPost = function(restOperation) {
       else {
         logger.info("Not a DEVICE or SERIVICE definition. Ignoring: " +modifiedFile);
       }
-
     }
 
-// Build an array of the GHE 'removed' commits
+    // Handle deleted device/service definitions.
     if (gheMessage.commits[i].removed.length > 0)  {
 
-      logger.info("Found a 'deletion': " +gheMessage.commits[i].removed);
+      // As the file has been deleted already we must retrieve the service definition from the previous commit - 'gheMessage.before'.
+      let previousCommit = gheMessage.before;
 
       let deletedFile = gheMessage.commits[i].removed.toString();
-
-      // As the file has been deleted we must retrieve the service definition from the previous commit using 'gheMessage.before'.
-
-      let previousCommit = gheMessage.before;
       var deletedFilePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+deletedFile+"?ref="+previousCommit;
-
       logger.info("Building path: deletedFilePath - " +deletedFilePath+ "\nUsing previousCommit: " +previousCommit);
 
       if (deletedFile.startsWith("SERVICE")) {
         logger.info("This is a 'SERVICE' definition: " +deletedFile);
-
-        //TODO how do we get the service name when the file is deleted? commit log?
-        logger.info("Received stringified: "+JSON.stringify(restOperation.getBody(), ' ', '\t')+ "\n\n");
 
         // Hand off to GheFetch Service Definition from GitHub enterprise
         GheFetch.getDeletedServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, deletedFilePath);
       }
       else if (deletedFile.startsWith("DEVICE")) {
         logger.info("This is a 'DEVICE' definition: " +deletedFile);
+
         // Hand off to GheFetch Service Definition from GitHub enterprise
-        //TODO Use device-reset worker.
+        //TODO Use BIG-IP device-reset worker.
       }
       else {
         logger.info("Not a DEVICE or SERIVICE definition. Ignoring: " +deletedFile);

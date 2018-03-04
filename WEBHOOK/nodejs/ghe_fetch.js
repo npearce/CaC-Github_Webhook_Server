@@ -1,6 +1,19 @@
+/*
+*   GheFetch:
+*     Retrieves GitHub Enteprise commit data.
+*
+*   N. Pearce, February 2018
+*   http://github.com/npearce
+*
+*/
 var logger = require('f5-logger').getInstance();
 var http = require('https');
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+//var AppServiceDeploy = require('service_deploy');
+//var AppServiceModify = require('service_modify');  -  Move to ghe_fetch
+//var AppServiceDelete = require('service_delete');
+//var DeviceDeploy = require('device_deploy');
 
 // TODO Support YAML & JSON? iImplement 'try { JSON.parse }' else check if YAML...
 
@@ -80,7 +93,6 @@ GheFetch.getDeletedServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, 
   });
 
 }
-
 
 GheFetch.getGheDownloadUrl = function(GHE_IP_ADDR, GHE_ACCESS_TOKEN, objectPath, download_url) {
 

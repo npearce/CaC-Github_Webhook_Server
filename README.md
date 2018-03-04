@@ -7,6 +7,11 @@ F5 has discovered customer interest in automated Infrastructure-as-Code models. 
 
 The service definition 'commit' may be either JSON or YAML configuration data which, via a GitHub WebHook, is communicated to an F5 iControl LX worker (a custom declarative interface within the BIG-IP REST API). The iControl LX worker translates the [JSON|YAML] service definition payload into a BIG-IP service configuration.
 
+## Requirements
+* Uses the iAppInstaller worker to ensure required iApps are installed on BIG-IP prior to deploying service definitions.
+
+> NOTE: iApps are configuration templates presented as declarative REST endpoints.
+
 ### Concepts
 * **iControl** - The F5 BIG-IP REST API.
 * **iControl LX** - (iControl Language eXtension) The F5 BIG-IP REST API Framework, upon which customers/partners can create their own custom endpoints/workflows.
@@ -46,7 +51,7 @@ GHE_IaC_WebHook
   |- SERVICES
     |- [EXAMPLE]webapp1.acme.com.yml
     |- [EXAMPLE]webapp2.acme.com.yml
-  |- GHE_BIG-IP_WebHook
+  |- WEBHOOK
     |- README.md
     |- INSTALL.md
     |- BIG-IP_WebHook_Server-1.0-000.rpm
@@ -57,7 +62,7 @@ GHE_IaC_WebHook
 * `DEVICES` - contains the 'deployed' Devices, and the device reporting (stats).
 * `DEVICES\STATS` - WebHook server posts device utilization data here.
 * `SERVICES` -  contains the services deployed upon the Infrastructure.
-* `GHE_BIG-IP_WebHook` - the WebHook server to install on BIG-IPs for IaC management.
+* `WEBHOOK` - the WebHook server to install on BIG-IPs for IaC management.
 
 <!-- Device on-boarding/reset worker:
 Docs: https://devcentral.f5.com/wiki/DevOps.HowToSamples_bigip_settings_reset.ashx
