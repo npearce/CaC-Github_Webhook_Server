@@ -6,14 +6,11 @@
 *   http://github.com/npearce
 *
 */
+"use strict";
+
 var logger = require('f5-logger').getInstance();
 var http = require('https');
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
-//var AppServiceDeploy = require('service_deploy');
-//var AppServiceModify = require('service_modify');  -  Move to ghe_fetch
-//var AppServiceDelete = require('service_delete');
-//var DeviceDeploy = require('device_deploy');
 
 // TODO Support YAML & JSON? iImplement 'try { JSON.parse }' else check if YAML...
 
@@ -22,7 +19,7 @@ function GheFetch() {}
 /**
  * Fetches data from GitHub Enterprise
  */
-GheFetch.getServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath) {
+GheFetch.getServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath, service_inputs) {
 
   GheFetch.getGheDownloadUrl(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath, function (download_url) {
 
@@ -46,8 +43,9 @@ GheFetch.getServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAp
       });
       res.on("end", function () {
         var body = Buffer.concat(chunks);
-        results = body.toString();
+        var results = body.toString();
         logger.info("GheFetch.getAddedServiceDefinition() - return results: " +results);
+        service_inputs(results);
       });
     }).on("error", function (err) {
       logger.info("GheFetch.getServiceDefinition: Error: " +err);
@@ -82,7 +80,7 @@ GheFetch.getDeletedServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, 
       });
       res.on("end", function () {
         var body = Buffer.concat(chunks);
-        results = body.toString();
+        var results = body.toString();
         logger.info("GheFetch.getDeletedServiceDefinition() - return results: " +results);
       });
     }).on("error", function (err) {
@@ -116,7 +114,7 @@ GheFetch.getGheDownloadUrl = function(GHE_IP_ADDR, GHE_ACCESS_TOKEN, objectPath,
     });
     res.on("end", function () {
       var body = Buffer.concat(chunks);
-      results = body.toString();
+      var results = body.toString();
 
       let parsed_results = JSON.parse(results);
 
@@ -155,7 +153,7 @@ GheFetch.getState = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, pathToData, cb) {
     });
     res.on("end", function () {
       var body = Buffer.concat(chunks);
-      results = body.toString();
+      var results = body.toString();
       logger.info("GheFetch.getServiceDefinition() - return results: " +results);
       cb(results);
     });
