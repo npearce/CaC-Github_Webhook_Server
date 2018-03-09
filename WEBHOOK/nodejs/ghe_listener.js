@@ -10,7 +10,7 @@
 
 var logger = require('f5-logger').getInstance();
 var http = require('http');
-var ServiceDeploy = require('./service_deploy.js');
+var ServiceAction = require('./as3_service_action.js');
 
 var GHE_IP_ADDR = '172.31.1.200';
 var GHE_ACCESS_TOKEN = '83037830f391bf6ac26482332b92ae36e2da4457';
@@ -67,7 +67,7 @@ GheListener.prototype.onPost = function(restOperation) {
 
       if (addedFile.startsWith("SERVICE")) {
         logger.info("This is a 'SERVICE' definition: " +addedFile);  
-        ServiceDeploy.deploy(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedFilePath);
+        ServiceAction.deploy(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedFilePath);
       }
       else {
         logger.info("Not a DEVICE or SERIVICE definition. Ignoring: " +addedFile);
@@ -79,14 +79,13 @@ GheListener.prototype.onPost = function(restOperation) {
 
       var modifiedFile = gheMessage.commits[i].modified.toString();
       var modifiedFilePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+modifiedFile;
-      logger.info("Building path: modifiedFilePath - " +modifiedFilePath);
+      logger.info('modifiedFilePath: '+modifiedFilePath);
 
-      // Is this a Device Definition, Service Definition, or junk?
       if (modifiedFile.startsWith("SERVICE")) {
         logger.info("This is a 'SERVICE' definition: " +modifiedFile);
 
         // Hand off to GheFetch Service Definition from GitHub enterprise
-        GheFetch.getServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, modifiedFilePath);
+        ServiceAction.modify(GHE_IP_ADDR, GHE_ACCESS_TOKEN, modifiedFilePath);
       }
       else {
         logger.info("Not a DEVICE or SERIVICE definition. Ignoring: " +modifiedFile);
@@ -107,7 +106,7 @@ GheListener.prototype.onPost = function(restOperation) {
         logger.info("This is a 'SERVICE' definition: " +deletedFile);
 
         // Hand off to GheFetch Service Definition from GitHub enterprise
-        GheFetch.getDeletedServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, deletedFilePath);
+        ServiceAction.delete(GHE_IP_ADDR, GHE_ACCESS_TOKEN, deletedFilePath);
       }
       else {
         logger.info("Not a DEVICE or SERIVICE definition. Ignoring: " +deletedFile);
@@ -121,7 +120,6 @@ GheListener.prototype.onPost = function(restOperation) {
   restOperation.setContentType('text');
   this.completeRestOperation(restOperation);
 };
-
 
 /**
  * handle /example HTTP request

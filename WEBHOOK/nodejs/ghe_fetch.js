@@ -23,7 +23,7 @@ GheFetch.getServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAp
 
   GheFetch.getGheDownloadUrl(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath, function (download_url) {
 
-    logger.info("GheFetch.getGheDownloadUrl fetched URL: " +download_url+ "\n Fetching Added Service Definition...");
+    logger.info("GheFetch.getGheDownloadUrl fetched URL: " +download_url+ "\n Fetching Service Definition...");
 
     var options = {
       "method": "GET",
@@ -44,7 +44,7 @@ GheFetch.getServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAp
       res.on("end", function () {
         var body = Buffer.concat(chunks);
         var results = body.toString();
-        logger.info("GheFetch.getAddedServiceDefinition() - return results: " +results);
+        logger.info("GheFetch.getServiceDefinition() - results: " +results);
         service_inputs(results);
       });
     }).on("error", function (err) {
