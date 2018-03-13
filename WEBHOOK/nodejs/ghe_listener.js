@@ -12,11 +12,6 @@ var logger = require('f5-logger').getInstance();
 var http = require('http');
 var ServiceAction = require('./as3_service_action.js');
 
-var GHE_IP_ADDR = '172.31.1.200';
-var GHE_ACCESS_TOKEN = '83037830f391bf6ac26482332b92ae36e2da4457';
-
-//var results; //temporary...
-
 function GheListener() {}
 
 GheListener.prototype.WORKER_URI_PATH = "shared/n8/ghe_listener";
@@ -24,16 +19,7 @@ GheListener.prototype.isPublic = true;
 
 GheListener.prototype.onStart = function(success, error) {
 
-  logger.info("GitHub Enterprise WebHook Server: onStart()...");
-//  const GHE_IP_ADDR = process.env.GHE_IP_ADDR;
-//  const GHE_ACCESS_TOKEN = process.env.GHE_ACCESS_TOKEN;
-
-  if (GHE_IP_ADDR && GHE_ACCESS_TOKEN) {
-    success();
-  }
-  else {
-    error('GHE Webhook Server requires IP Address, and Access Token.');
-  }
+  logger.info("GitHub Enterprise WebHook Server Listener: onStart()...");
 
 };
 
@@ -42,8 +28,7 @@ GheListener.prototype.onStart = function(success, error) {
  */
 GheListener.prototype.onGet = function(restOperation) {
 
-//TODO Show config (Device ID, GHE IP Address, GHE Token, etc.)
-  restOperation.setBody(JSON.stringify( { value: "GheListener: " +GheListener.prototype.WORKER_URI_PATH+ ": Hello World!" } ));
+  restOperation.setBody(this.state);
   this.completeRestOperation(restOperation);
 
 };
@@ -69,9 +54,6 @@ GheListener.prototype.onPost = function(restOperation) {
         logger.info("This is a 'SERVICE' definition: " +addedFile);  
         ServiceAction.deploy(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedFilePath);
       }
-      else {
-        logger.info("Not a DEVICE or SERIVICE definition. Ignoring: " +addedFile);
-      }
     }
 
     // Handle modified device/service definitions.
@@ -79,37 +61,27 @@ GheListener.prototype.onPost = function(restOperation) {
 
       var modifiedFile = gheMessage.commits[i].modified.toString();
       var modifiedFilePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+modifiedFile;
-      logger.info('modifiedFilePath: '+modifiedFilePath);
 
       if (modifiedFile.startsWith("SERVICE")) {
         logger.info("This is a 'SERVICE' definition: " +modifiedFile);
-
-        // Hand off to GheFetch Service Definition from GitHub enterprise
         ServiceAction.modify(GHE_IP_ADDR, GHE_ACCESS_TOKEN, modifiedFilePath);
-      }
-      else {
-        logger.info("Not a DEVICE or SERIVICE definition. Ignoring: " +modifiedFile);
       }
     }
 
     // Handle deleted device/service definitions.
     if (gheMessage.commits[i].removed.length > 0)  {
 
-      // As the file has been deleted already we must retrieve the service definition from the previous commit - 'gheMessage.before'.
+      // The definition has been deleted, so we must retrieve it from the previous commit - 'gheMessage.before'.
       var previousCommit = gheMessage.before;
 
       var deletedFile = gheMessage.commits[i].removed.toString();
       var deletedFilePath = "/api/v3/repos/"+gheMessage.repository.full_name+"/contents/"+deletedFile+"?ref="+previousCommit;
-      logger.info("Building path: deletedFilePath - " +deletedFilePath+ "\nUsing previousCommit: " +previousCommit);
 
       if (deletedFile.startsWith("SERVICE")) {
         logger.info("This is a 'SERVICE' definition: " +deletedFile);
 
         // Hand off to GheFetch Service Definition from GitHub enterprise
         ServiceAction.delete(GHE_IP_ADDR, GHE_ACCESS_TOKEN, deletedFilePath);
-      }
-      else {
-        logger.info("Not a DEVICE or SERIVICE definition. Ignoring: " +deletedFile);
       }
     }
   }
@@ -122,12 +94,31 @@ GheListener.prototype.onPost = function(restOperation) {
 };
 
 /**
+ * handle onPost HTTP request
+ */
+GheListener.prototype.onPut = function(restOperation) {
+
+  var newState = restOperation.getBody();
+  this.state.GHE_IP_ADDR = newState.ghe_ip_address;
+  this.state.GHE_ACCESS_TOKEN = newState.ghe_access_token;
+  this.state = newState;
+  
+//  var GHE_IP_ADDR = '172.31.1.200';
+//  var GHE_ACCESS_TOKEN = '83037830f391bf6ac26482332b92ae36e2da4457';
+
+  restOperation.setBody(this.state);
+  this.completeRestOperation(restOperation);
+
+};
+
+/**
  * handle /example HTTP request
  */
 GheListener.prototype.getExampleState = function () {
   return {
-    "supports":"none"
-  };
+    "ghe_ip_address":"x.x.x.x",
+    "ghe_access_token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  }
 };
 
 module.exports = GheListener;
