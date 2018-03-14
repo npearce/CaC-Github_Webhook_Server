@@ -12,64 +12,76 @@
 var logger = require('f5-logger').getInstance();
 var http = require('https');
 var GheFetch = require('./ghe_fetch.js');
+//var GhePost = require('./ghe_post.js');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 function ServiceAction() {}
 
-ServiceAction.deploy = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedFilePath) {
+ServiceAction.deploy = function (config, addedFile, gheMessage) {
 
-    logger.info('IN: ServiceAction.prototype.deploy()');
+    if (addedFile.startsWith("SERVICE")) {
 
-    GheFetch.getServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedFilePath, function (service_inputs) {
-        logger.info('This is what we\'re pushing to AS3, service_inputs:\n' +service_inputs);
+        var addedFilePath = "/api/v3/repos/" + gheMessage.repository.full_name + "/contents/" + addedFile;
 
-        ServiceAction.pushToIapp(service_inputs, function(results) {
-            logger.info('deploy to AS3 results: '+results);
-//            GhePost.postResultsToGhe(results); //Response code
+        GheFetch.getServiceDefinition(config, addedFilePath, function (service_inputs) {
+            logger.info('This is what we\'re pushing to AS3, service_inputs:\n' +service_inputs);
+    
+            try {
+                JSON.parse(service_inputs); //Adding support for YAML
+            }
+            catch(e) {
+                
+            }
+    
+            ServiceAction.pushToIapp(service_inputs, function(results) {
+                logger.info('deploy to AS3 results: '+results);
+    //            GhePost.postResultsToGhe(GHE_IP_ADDR, GHE_ACCESS_TOKEN, results); //Success/Fail Response
+            });
         });
-    });
+    }
 };
 
-ServiceAction.modify = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, modifiedFilePath) {
-    //TODO Handle modifications to deployments
+ServiceAction.modify = function (config, modifiedFile, gheMessage) {
 
-    logger.info('IN: ServiceAction.prototype.modify()');
+    if (modifiedFile.startsWith("SERVICE")) {
 
-    GheFetch.getServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, modifiedFilePath, function (service_inputs) {
-        logger.info('This is what we\'re pushing to AS3, service_inputs:\n' +service_inputs);
+        var modifiedFilePath = "/api/v3/repos/" + gheMessage.repository.full_name + "/contents/" + modifiedFile;
 
-        ServiceAction.pushToIapp(service_inputs, function(results) {
-            logger.info('modify to AS3 results: '+results);
-//            GhePost.postResultsToGhe(results); //Response code
-        });
-    });
+        GheFetch.getServiceDefinition(config, modifiedFilePath, function (service_inputs) {
+    
+            ServiceAction.pushToIapp(service_inputs, function(results) {
+                logger.info('modify to AS3 results: '+results);
+    //            GhePost.postResultsToGhe(results); //Response code
+            });
+        });    
+    }
 }
 
-ServiceAction.delete = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, deletedFilePath) {
+ServiceAction.delete = function (config, deletedFile, gheMessage) {
 
-    //TODO this deletes 'Tenent1' = DELETE mgmt/shared/appsvcs/declare/localhost/Tenant1
-    GheFetch.getServiceDefinition(GHE_IP_ADDR, GHE_ACCESS_TOKEN, deletedFilePath, function (service_inputs) {
-        logger.info('This is what we\'re deleting via AS3, service_inputs:\n' +service_inputs);
-        var parsed_inputs = JSON.parse(service_inputs);
- 
-        Object.keys(parsed_inputs).forEach( function(key) {
-            logger.info('parsed_inputs[key]: ' +parsed_inputs[key]);
-            logger.info('parsed_inputs[key].class: ' +parsed_inputs[key].class);
-            if (parsed_inputs[key].class == 'Tenant' ) {
-                logger.info('Building URI to delete \"' +key+ '\"');
-
-                var path = '/mgmt/shared/appsvcs/declare/localhost/'+key;
-
-                ServiceAction.pushDeleteToIapp(path, function(results) {
-                    logger.info('Deleting to AS3 results: '+results);
-        //            GhePost.postResultsToGhe(results); //Response code
-                });
-        
-            }
+    if (deletedFile.startsWith("SERVICE")) {
+        // The definition has been deleted, so we must retrieve it from the previous commit - 'gheMessage.before'.
+        var previousCommit = gheMessage.before;
+        var deletedFilePath = "/api/v3/repos/" + gheMessage.repository.full_name + "/contents/" + deletedFile + "?ref=" + previousCommit;
+    
+        GheFetch.getServiceDefinition(config, deletedFilePath, function (service_inputs) {
+            var parsed_inputs = JSON.parse(service_inputs);
+     
+            Object.keys(parsed_inputs).forEach( function(key) {
+                if (parsed_inputs[key].class == 'Tenant' ) {
+    
+                    var path = '/mgmt/shared/appsvcs/declare/localhost/'+key;
+    
+                    ServiceAction.pushDeleteToIapp(path, function(results) {
+                        logger.info('Deleting to AS3 results: '+results);
+            //            GhePost.postResultsToGhe(results); //Response code
+                    });
+            
+                }
+            });
         });
-
-    });
+    }
 }
 
 ServiceAction.pushToIapp = function (service_inputs, cb) {
@@ -105,12 +117,11 @@ ServiceAction.pushToIapp = function (service_inputs, cb) {
 
 };
 
-
 ServiceAction.pushDeleteToIapp = function (path, cb) {
 
+    //FIX: Why arent we using restOperation();??
     logger.info('IN: ServiceAction.pushDeleteToIapp()');
     logger.info('Deleting: ' +path);
-
 
     var options = {
         "method": "DELETE",
@@ -135,9 +146,7 @@ ServiceAction.pushDeleteToIapp = function (path, cb) {
             cb(body);
         });
     });
-
     req.end();
-
 };
 
 module.exports = ServiceAction;

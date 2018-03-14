@@ -9,19 +9,18 @@
 "use strict";
 
 //TODO POST the success/fail results back to GHE
-GhePost.postResultsToGhe = function (data) {
+GhePost.postResultsToGhe = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, data) {
     //TODO Post back to repo.
     logger.info('Postng to GHE....')
 
     var options = {
         "method": "POST",
-        "hostname": GITLAB_IP,       // 'export' from ghe_listener.
-        "port": GITLAB_HTTP_PORT,       // 'export' from ghe_listener.
+        "hostname": GHE_IP_ADDR,
+        "port": 443,
         "path": "/api/v4/projects/1/repository/commits",   // Get the path from the original commit message...
         "headers": {
           "content-type": "application/json",
-    //      "authorization": "Basic b3BzX3VzZXI6ZTRkOGJhM2M=",
-          "PRIVATE-TOKEN": "t551erWyKZUvahvfnyQ3"   // Get the GHE_TOKEN
+          "authorization": "Bearer " +GHE_ACCESS_TOKEN
         }
       };
     

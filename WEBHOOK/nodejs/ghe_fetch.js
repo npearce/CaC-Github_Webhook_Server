@@ -10,6 +10,7 @@
 
 var logger = require('f5-logger').getInstance();
 var http = require('https');
+//var YAML = require('yamljs');
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 // TODO Support YAML & JSON? iImplement 'try { JSON.parse }' else check if YAML...
@@ -19,20 +20,20 @@ function GheFetch() {}
 /**
  * Fetches data from GitHub Enterprise
  */
-GheFetch.getServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath, service_inputs) {
+GheFetch.getServiceDefinition = function (config, addedAppServicePath, service_inputs) {
 
-  GheFetch.getGheDownloadUrl(GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAppServicePath, function (download_url) {
+  GheFetch.getGheDownloadUrl(config, addedAppServicePath, function (download_url) {
 
     logger.info("GheFetch.getGheDownloadUrl fetched URL: " +download_url+ "\n Fetching Service Definition...");
 
     var options = {
       "method": "GET",
-      "hostname": GHE_IP_ADDR,
+      "hostname": config.ghe_ip_address,
       "port": 443,
       "path": download_url,
       "headers": {
         "cache-control": "no-cache",
-        "authorization": "Bearer " +GHE_ACCESS_TOKEN
+        "authorization": "Bearer " +config.ghe_access_token
       }
     };
 
@@ -56,20 +57,20 @@ GheFetch.getServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, addedAp
 
 }
 
-GheFetch.getDeletedServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, deletedFilePath) {
+GheFetch.getDeletedServiceDefinition = function (config, deletedFilePath) {
 
-  GheFetch.getGheDownloadUrl(GHE_IP_ADDR, GHE_ACCESS_TOKEN, deletedFilePath, function (download_url) {
+  GheFetch.getGheDownloadUrl(config, deletedFilePath, function (download_url) {
 
     logger.info("GheFetch.getGheDownloadUrl fetched URL: " +download_url+ "\n Fetching Deleted Service Definition (from back in time)...");
 
     var options = {
       "method": "GET",
-      "hostname": GHE_IP_ADDR,
+      "hostname": config.ghe_ip_address,
       "port": 443,
       "path": download_url,
       "headers": {
         "cache-control": "no-cache",
-        "authorization": "Bearer " +GHE_ACCESS_TOKEN
+        "authorization": "Bearer " +config.ghe_access_token
       }
     };
 
@@ -92,18 +93,18 @@ GheFetch.getDeletedServiceDefinition = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, 
 
 }
 
-GheFetch.getGheDownloadUrl = function(GHE_IP_ADDR, GHE_ACCESS_TOKEN, objectPath, download_url) {
+GheFetch.getGheDownloadUrl = function(config, objectPath, download_url) {
 
-  logger.info("GheFetch.getGheDownloadUrl() fetching " +objectPath+ " from: " +GHE_IP_ADDR);
+  logger.info("GheFetch.getGheDownloadUrl() fetching " +objectPath+ " from: " +config.ghe_ip_address);
 
   var options = {
     "method": "GET",
-    "hostname": GHE_IP_ADDR,
+    "hostname": config.ghe_ip_address,
     "port": 443,
     "path": objectPath,
     "headers": {
       "cache-control": "no-cache",
-      "authorization": "Bearer " +GHE_ACCESS_TOKEN
+      "authorization": "Bearer " +config.ghe_access_token
     }
   };
 
@@ -131,18 +132,18 @@ GheFetch.getGheDownloadUrl = function(GHE_IP_ADDR, GHE_ACCESS_TOKEN, objectPath,
 }
 
 //TODO phone home for the WebHook State....
-GheFetch.getState = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, pathToData, cb) {
+GheFetch.getState = function (config, pathToData, cb) {
 
-  logger.info("GheFetch.getServiceDefinition() fetching " +pathToData+ " from: " +GHE_IP_ADDR);
+  logger.info("GheFetch.getServiceDefinition() fetching " +pathToData+ " from: " +config.ghe_ip_address);
 
   var options = {
     "method": "GET",
-    "hostname": GHE_IP_ADDR,
+    "hostname": config.ghe_ip_address,
     "port": 443,
     "path": pathToData,
     "headers": {
       "cache-control": "no-cache",
-      "authorization": "Bearer " +GHE_ACCESS_TOKEN
+      "authorization": "Bearer " +config.ghe_access_token
     }
   };
 
@@ -163,6 +164,5 @@ GheFetch.getState = function (GHE_IP_ADDR, GHE_ACCESS_TOKEN, pathToData, cb) {
   req.end();
 
 }
-
 
 module.exports = GheFetch;
