@@ -16,4 +16,4 @@ f5-rest-bigip-settings/nodejs/node_modules/q/README.md
 f5-rest-bigip-settings/nodejs/node_modules/q/package.json
 f5-rest-bigip-settings/nodejs/node_modules/q/q.js
 f5-rest-bigip-settings/nodejs/node_modules/q/queue.js
-GHE/GH_IaC_WebHook/GheWebhookServer/nodejs/node_modules/*
+GheWebhookServer/nodejs/node_modules/*
