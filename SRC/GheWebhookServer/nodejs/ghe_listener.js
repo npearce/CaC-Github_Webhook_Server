@@ -143,7 +143,7 @@ GheListener.prototype.pushToIapp = function (config, action, service_definition)
     var restOp = this.createRestOperation(uri, service_definition);          
     this.restRequestSender.sendPost(restOp)
     .then (function (resp) {
-      logger.info('[GheListener] pushToIapp: Response: ' +JSON.stringify('\t', '', resp));
+      logger.info('[GheListener] pushToIapp: Response: ' +JSON.stringify('', '\t', resp));
   //    cb(resp);
     })
     .catch (function (error, errMsg) {
