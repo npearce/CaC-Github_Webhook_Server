@@ -38,8 +38,12 @@ Rapid, repeatable creation of demonstration environments for:
 ```
 GHE_IaC_WebHook
   |- README.md
-  |- BIG-IP_SETUP.md
-  |- GHE_SETUP.md
+  |- DIST
+    |- f5-appsvcs-3.0.0-21.noarch.rpm
+    |- GheListener-0.1.0-0001.noarch.rpm
+  |- DOCS
+    |- BIG-IP_SETUP.md
+    |- GHE_SETUP.md
   |- EXAMPLES
     |- [EXAMPLE]webapp1.acme.com.yml
     |- [EXAMPLE]webapp2.acme.com.yml
@@ -49,15 +53,12 @@ GHE_IaC_WebHook
       |- nodesjs
         |- ghe_listener.js
         |- ghe_util.js
-  |- DIST
-    |- f5-appsvcs-3.0.0-21.noarch.rpm
-    |- GheListener-0.1.0-0001.noarch.rpm
 ```
 
-* `EXAMPLES` - containers templates for device on-boarding and for service deployments.
-* `SERVICES` -  contains the services deployed upon the Infrastructure.
-* `SRC` - the WebHook server iControl LX source.
 * `DIST` - the RPMs to install onto BIG-IPs for IaC management.
+* `DOCS` - the setup instructions for GHE an BIG-IP.
+* `EXAMPLES` - containers templates for device on-boarding and for service deployments.
+* `SRC` - the WebHook server iControl LX source.
 
 
 ## WebHook functions
