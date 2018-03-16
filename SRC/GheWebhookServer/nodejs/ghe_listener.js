@@ -2,7 +2,7 @@
 *   GheListener:
 *     GitHub Enterprise webhook message router.
 *
-*   N. Pearce, February 2018
+*   N. Pearce, March 2018
 *   http://github.com/npearce
 *
 */
@@ -10,7 +10,6 @@
 
 const logger = require('f5-logger').getInstance();
 const http = require('http');
-//const ServiceAction = require('./as3_service_action.js');
 const GheUtil = require('./ghe_util.js');
 
 function GheListener() {
