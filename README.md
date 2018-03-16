@@ -38,41 +38,27 @@ Rapid, repeatable creation of demonstration environments for:
 ```
 GHE_IaC_WebHook
   |- README.md
-  |- TEMPLATES
-    |- README.md
-    |- TEMPLATE_device_onboarding.yml
-    |- TEMPLATE_service_example1.yml
-    |- TEMPLATE_service_example2.yml
-    |- TEMPLATE_service_example3.yml
-  |- DEVICES
-    |- [EXAMPLE]DEVICE-bigip_demo1.local.yml
-    |- STATS
-      |- [EXAMPLE]STATS-bigip_demo1.local.yml
-  |- SERVICES
+  |- BIG-IP_SETUP.md
+  |- GHE_SETUP.md
+  |- EXAMPLES
     |- [EXAMPLE]webapp1.acme.com.yml
     |- [EXAMPLE]webapp2.acme.com.yml
-  |- WEBHOOK
-    |- README.md
-    |- INSTALL.md
-    |- BIG-IP_WebHook_Server-1.0-000.rpm
-    |- device_onboarding_worker.rpm
+  |- SRC
+    |- GheWebhookServer
+      |- README.md
+      |- nodesjs
+        |- ghe_listener.js
+        |- ghe_util.js
+  |- DIST
+    |- f5-appsvcs-3.0.0-21.noarch.rpm
+    |- GheListener-0.1.0-0001.noarch.rpm
 ```
 
-* `TEMPLATES` - containers templates for device on-boarding and for service deployments.
-* `DEVICES` - contains the 'deployed' Devices, and the device reporting (stats).
-* `DEVICES\STATS` - WebHook server posts device utilization data here.
+* `EXAMPLES` - containers templates for device on-boarding and for service deployments.
 * `SERVICES` -  contains the services deployed upon the Infrastructure.
-* `WEBHOOK` - the WebHook server to install on BIG-IPs for IaC management.
+* `SRC` - the WebHook server iControl LX source.
+* `DIST` - the RPMs to install onto BIG-IPs for IaC management.
 
-<!-- Device on-boarding/reset worker:
-Docs: https://devcentral.f5.com/wiki/DevOps.HowToSamples_bigip_settings_reset.ashx
-Download: https://devcentral.f5.com/d/f5-devops-library-provisioning-230
--->
-
-<!--
-Docs: https://devcentral.f5.com/wiki/DevOps.APIRef_bigip-dsc_API.ashx
-Download: https://devcentral.f5.com/d/f5-devops-library-clustering-231
--->
 
 ## WebHook functions
 
