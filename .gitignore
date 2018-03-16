@@ -17,3 +17,7 @@ f5-rest-bigip-settings/nodejs/node_modules/q/package.json
 f5-rest-bigip-settings/nodejs/node_modules/q/q.js
 f5-rest-bigip-settings/nodejs/node_modules/q/queue.js
 GheWebhookServer/nodejs/node_modules/*
+GH_IaC_WebHook/EXAMPLES/EXAMPLE-Device_Definition.json
+GH_IaC_WebHook/EXAMPLES/EXAMPLE-Device_Definition.yml
+GH_IaC_WebHook/EXAMPLES/EXAMPLE-Service_Definition.json
+GH_IaC_WebHook/EXAMPLES/EXAMPLE-Service_Definition.yml
