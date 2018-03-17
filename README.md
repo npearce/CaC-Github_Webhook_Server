@@ -76,8 +76,8 @@ GHE_IaC_WebHook
 | *Feature* | *Description* | *Release* |
 |-----------|---------------|-----------|
 | Webhook Server | Consumes Service Definitions and deploys to BIG-IP. Supports Deploy/Re-deploy/Delete operations. | v0.1 |
-| Issue reporting | Create GitHub Issue for failed deployments | v0.2 |
-| Service Feedback | Post Availability/Performance data back to GitHub | v0.3 |
+| Issue reporting | Create GitHub Issue for failed deployments | v0.1 |
+| Service Feedback | Post Availability/Performance data back to GitHub | v0.2 |
 
 **Details:**
 
