@@ -35,7 +35,7 @@ GheUtil.parseCommitMessage = function (gheMessage, cb) {
     
         // Handle modified device/service definitions.
         if (gheMessage.commits[i].modified.length > 0) {
-            let action = 'deploy';
+            let action = 'modify';
             let deployFile = gheMessage.commits[i].modified.toString();
             let deployFilePath = "/api/v3/repos/" + gheMessage.repository.full_name + "/contents/" + deployFile;
             cb(action, deployFilePath);
@@ -97,7 +97,7 @@ GheUtil.getGheDownloadUrl = function(config, objectPath, cb) {
 /**
  * Fetches data from GitHub Enterprise
  */
-GheUtil.getServiceDefinition = function (config, download_url, service_inputs) {
+GheUtil.getServiceDefinition = function (config, download_url, cb) {
 
     logger.info("GheUtil.getGheDownloadUrl fetched URL: " +download_url+ "\n Fetching Service Definition...");
   
@@ -124,7 +124,8 @@ GheUtil.getServiceDefinition = function (config, download_url, service_inputs) {
             var body = Buffer.concat(chunks);
             var results = body.toString();
             logger.info("GheUtil.getServiceDefinition() - results: " +results);
-            service_inputs(results);
+            cb(results);
+        
         });
 
     }).on("error", function (err) {
@@ -171,5 +172,44 @@ GheUtil.getDeletedServiceDefinition = function (config, download_url) {
 
 }
 
+GheUtil.createIssue = function(config, action, tenant, service_definition, status_code) {
+
+    logger.info('IN: GheUtil.createIssue() ');
+
+    var data = JSON.stringify({
+        "title": action+ ' - ' +tenant+ ' - ' +status_code,
+        "body": service_definition,
+        "labels": [ status_code.toString() ]
+    });
+
+    logger.info('GheUtil.createIssue().data ' +data);
+
+    var options = {
+      "method": "POST",
+      "hostname": config.ghe_ip_address,
+      "path": "/api/v3/repos/iacorg/ip-172-31-1-24.us-west-1.compute.internal/issues",
+      "headers": {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        "authorization": "Bearer " +config.ghe_access_token
+      }
+    };
+
+    var req = http.request(options, function (res) {
+      var chunks = [];
+
+      res.on("data", function (chunk) {
+        chunks.push(chunk);
+      });
+
+      res.on("end", function () {
+        var body = Buffer.concat(chunks);
+        logger.info(body.toString());
+      });
+    });
+
+    req.write(data);
+    req.end();
+}
 
 module.exports = GheUtil;

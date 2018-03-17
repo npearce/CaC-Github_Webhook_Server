@@ -71,11 +71,27 @@ GheListener.prototype.onPost = function(restOperation) {
 
     GheUtil.parseCommitMessage(gheMessage, function(action, definitionPath) {
       logger.info('[GheListener] action:' +action+ ' definitionPath: ' +definitionPath);
+
       GheUtil.getGheDownloadUrl(config, definitionPath, function(download_url) {
         logger.info('[GheListener] download_url: ' +download_url);
+
         GheUtil.getServiceDefinition(config, download_url, function(service_definition) {
           logger.info('[GheListener] This is what we will ' +action+ ' - '  +service_definition);
-          that.pushToIapp(config, action, service_definition);
+
+          var parsed_inputs = JSON.parse(service_definition);
+          Object.keys(parsed_inputs).forEach( function(key) {
+              if (parsed_inputs[key].class == 'Tenant' ) {
+                logger.info('[GheListener] Tenant: ' +key);
+                that.pushToIapp(config, action, key, service_definition, function(status_code) {
+                  logger.info('status code: ' +status_code);
+                  GheUtil.createIssue(config, action, key, service_definition, status_code);
+                });
+      
+                    
+              }
+          });
+
+
 
         });
       });
@@ -106,7 +122,7 @@ GheListener.prototype.onPut = function(restOperation) {
  * Deploy to AS3
  */
 
-GheListener.prototype.pushToIapp = function (config, action, service_definition) {
+GheListener.prototype.pushToIapp = function (config, action, tenant, service_definition, cb) {
 
   var host = '127.0.0.1';
   var that = this;
@@ -118,23 +134,19 @@ GheListener.prototype.pushToIapp = function (config, action, service_definition)
     method = 'DELETE';
     var parsed_inputs = JSON.parse(service_definition);
      
-    Object.keys(parsed_inputs).forEach( function(key) {
-        if (parsed_inputs[key].class == 'Tenant' ) {
-            var as3uri = '/mgmt/shared/appsvcs/declare/localhost/'+key;
-            var uri = that.generateURI(host, as3uri);
-            var restOp = that.createRestOperation(uri, service_definition);
-            that.restRequestSender.sendDelete(restOp)
-            .then (function (resp) {
-              logger.info('[GheListener] pushToIapp: Response: ' +JSON.stringify('', '\t', resp));
-          //    cb(resp);
-            })
-            .catch (function (error) {
-              logger.info('we have an error: ' +error);
-          //   cb(error);
-            });
-          
-          }
+    var as3uri = '/mgmt/shared/appsvcs/declare/localhost/'+tenant;
+    var uri = that.generateURI(host, as3uri);
+    var restOp = that.createRestOperation(uri, service_definition);
+    that.restRequestSender.sendDelete(restOp)
+    .then (function (resp) {
+      logger.info('[GheListener] pushToIapp: Response: restOp.statusCode: ' +restOp.statusCode);
+      cb(restOp.statusCode);
+    })
+    .catch (function (error) {
+      logger.info(error);
+      cb(error);
     });
+          
   }
   else {
     logger.info('we are deploying');
@@ -142,14 +154,13 @@ GheListener.prototype.pushToIapp = function (config, action, service_definition)
     var uri = this.generateURI(host, as3uri);
     var restOp = this.createRestOperation(uri, service_definition);          
     this.restRequestSender.sendPost(restOp)
-    .then (function (resp) {
-      logger.info('[GheListener] pushToIapp: Response: ' +JSON.stringify('', '\t', resp));
-  //    cb(resp);
+    .then (function () {
+      logger.info('[GheListener] pushToIapp: Response: ' +restOp.statusCode);
+      cb(restOp.statusCode);
     })
-    .catch (function (error, errMsg) {
-      logger.info('we have an error: ' +error);
-      logger.info('we have an error: ' +errMsg);
-  //   cb(error);
+    .catch (function (error) {
+      logger.info(error);
+      cb(error);
     });
   
   }
