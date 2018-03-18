@@ -172,17 +172,20 @@ GheUtil.getDeletedServiceDefinition = function (config, download_url) {
 
 }
 
-GheUtil.createIssue = function(config, action, tenant, service_definition, status_code) {
+GheUtil.createIssue = function(config, action, tenant, service_definition, results) {
 
-    logger.info('IN: GheUtil.createIssue() ');
+    logger.info('IN: GheUtil.createIssue()');
+
+    var message = results[0].message;
+    var result = JSON.stringify(results[0], '', '\t');
 
     var data = JSON.stringify({
-        "title": action+ ' - ' +tenant+ ' - ' +status_code,
-        "body": service_definition,
-        "labels": [ status_code.toString() ]
+        "title": action+ ' - ' +tenant+ ' - ' +message,
+        "body": result,
+        "labels": [ message ]
     });
 
-    logger.info('GheUtil.createIssue().data ' +data);
+    logger.info('GheUtil.createIssue().data' +data);
 
     var options = {
       "method": "POST",
@@ -204,7 +207,7 @@ GheUtil.createIssue = function(config, action, tenant, service_definition, statu
 
       res.on("end", function () {
         var body = Buffer.concat(chunks);
-        logger.info(body.toString());
+ //       if (DEBUG) { logger.info(body.toString()); }
       });
     });
 

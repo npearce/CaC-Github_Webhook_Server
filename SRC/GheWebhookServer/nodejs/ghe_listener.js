@@ -82,17 +82,12 @@ GheListener.prototype.onPost = function(restOperation) {
           Object.keys(parsed_inputs).forEach( function(key) {
               if (parsed_inputs[key].class == 'Tenant' ) {
                 logger.info('[GheListener] Tenant: ' +key);
-                that.pushToIapp(config, action, key, service_definition, function(status_code) {
-                  logger.info('status code: ' +status_code);
-                  GheUtil.createIssue(config, action, key, service_definition, status_code);
+                that.pushToIapp(config, action, key, service_definition, function(results) {
+                  logger.info('[GheListener]: AS3 Response: ' +JSON.stringify(results));
+                  GheUtil.createIssue(config, action, key, service_definition, results);
                 });
-      
-                    
               }
           });
-
-
-
         });
       });
     });
@@ -139,8 +134,8 @@ GheListener.prototype.pushToIapp = function (config, action, tenant, service_def
     var restOp = that.createRestOperation(uri, service_definition);
     that.restRequestSender.sendDelete(restOp)
     .then (function (resp) {
-      logger.info('[GheListener] pushToIapp: Response: restOp.statusCode: ' +restOp.statusCode);
-      cb(restOp.statusCode);
+      logger.info('[GheListener] pushToIapp: Response: ' +JSON.stringify(resp.body.results));
+      cb(resp.body.results);
     })
     .catch (function (error) {
       logger.info(error);
@@ -154,9 +149,9 @@ GheListener.prototype.pushToIapp = function (config, action, tenant, service_def
     var uri = this.generateURI(host, as3uri);
     var restOp = this.createRestOperation(uri, service_definition);          
     this.restRequestSender.sendPost(restOp)
-    .then (function () {
-      logger.info('[GheListener] pushToIapp: Response: ' +restOp.statusCode);
-      cb(restOp.statusCode);
+    .then (function (resp) {
+      logger.info('[GheListener] pushToIapp: Response: ' +JSON.stringify(resp.body.results));
+      cb(resp.body.results);
     })
     .catch (function (error) {
       logger.info(error);
@@ -193,9 +188,6 @@ GheListener.prototype.generateURI = function (host, path) {
 * @returns {RestOperation}
 */
 GheListener.prototype.createRestOperation = function (uri, body) {
-
-  logger.info('uri: ' +uri);
-  logger.info('body' +body);
 
   var restOp = this.restOperationFactory.createRestOperationInstance()
       .setUri(uri)
