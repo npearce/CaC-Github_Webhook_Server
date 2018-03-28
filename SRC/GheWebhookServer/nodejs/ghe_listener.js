@@ -11,6 +11,7 @@
 const logger = require('f5-logger').getInstance();
 const http = require('http');
 const GheUtil = require('./ghe_util.js');
+var DEBUG = false;
 
 function GheListener() {
   this.state = {};
@@ -26,8 +27,9 @@ GheListener.prototype.isSingleton = true;
  */
 GheListener.prototype.onStart = function(success, error) {
 
-  logger.info("[GheListener] GitHub Enterprise WebHook Server: onStart()...");
+  logger.info("[GheListener] GitHub Enterprise WebHook Server: Starting...");
 
+  //Load state (configuration data) from persisted storage.
   var that = this;  
   this.loadState(null, function (err, state) {
     if (err) {
@@ -35,10 +37,13 @@ GheListener.prototype.onStart = function(success, error) {
     }
     else {
       that.state = state;
+      if (that.state.config.debug === 'true') {
+        logger.info('[GheListener] DEBUG enabled...');
+        DEBUG = true;
+      }
       success('[GheListener] State loaded...');
     }
   });
-
 };
 
 /**
@@ -59,6 +64,7 @@ GheListener.prototype.onPost = function(restOperation) {
 
   var config = this.state.config;
 
+  //Do we have configuration data: GitHub IP & Access Token?
   if (!config.ghe_ip_address || !config.ghe_access_token) {
     console.log('[GheListener] Requires \'ghe_ip_address\' & \'ghe_access_token\' to function.');
     this.completeRestOperation(restOperation);
@@ -67,23 +73,25 @@ GheListener.prototype.onPost = function(restOperation) {
 
     var that = this;
     var gheMessage = restOperation.getBody();
-    logger.info("[GheListener] Activity from repository: " + gheMessage.repository.name);
+    if (DEBUG) { logger.info("[GheListener] - DEBUG - Activity from repository: " + gheMessage.repository.name); }
 
     GheUtil.parseCommitMessage(gheMessage, function(action, definitionPath) {
-      logger.info('[GheListener] action:' +action+ ' definitionPath: ' +definitionPath);
+      if (DEBUG) { logger.info('[GheListener] - DEBUG - Action:' +action+ ' definitionPath: ' +definitionPath); }
 
       GheUtil.getGheDownloadUrl(config, definitionPath, function(download_url) {
-        logger.info('[GheListener] download_url: ' +download_url);
+        if (DEBUG) { logger.info('[GheListener] - DEBUG - Retrieved download_url: ' +download_url); }
 
         GheUtil.getServiceDefinition(config, download_url, function(service_definition) {
-          logger.info('[GheListener] This is what we will ' +action+ ' - '  +service_definition);
+          if (DEBUG) { logger.info('[GheListener] - DEBUG - Worker will ' +action+ ' - '  +service_definition); }
 
           var parsed_inputs = JSON.parse(service_definition);
           Object.keys(parsed_inputs).forEach( function(key) {
               if (parsed_inputs[key].class == 'Tenant' ) {
-                logger.info('[GheListener] Tenant: ' +key);
+                if (DEBUG) { logger.info('[GheListener] - DEBUG - The \'Tenant\' is: ' +key); }
+
                 that.pushToIapp(config, action, key, service_definition, function(results) {
-                  logger.info('[GheListener]: AS3 Response: ' +JSON.stringify(results));
+                  if (DEBUG) { logger.info('[GheListener] - DEBUG - AS3 Response: ' +JSON.stringify(results)); }
+
                   GheUtil.createIssue(config, action, key, service_definition, results);
                 });
               }
@@ -107,6 +115,16 @@ GheListener.prototype.onPost = function(restOperation) {
 GheListener.prototype.onPut = function(restOperation) {
 
   var newState = restOperation.getBody();
+  if (DEBNUG) { logger.info('newState: ' +JSON.stringify(newState)); }
+  
+  if (newState.config.debug === 'true') { 
+    logger.info('[GheListener] - Enabling debug mode...');
+    DEBUG = true;
+  }
+  else {
+    DEBUG = false;
+  }
+
   this.state = newState;
   restOperation.setBody(this.state);
   this.completeRestOperation(restOperation);
@@ -122,39 +140,40 @@ GheListener.prototype.pushToIapp = function (config, action, tenant, service_def
   var host = '127.0.0.1';
   var that = this;
   var method = 'POST';
+  var parsed_inputs, as3uri, uri, restOp;
 
   if (action == 'delete') {
 
-    logger.info('we are deleting');
+    if (DEBUG) { logger.info('[GheListener] - DEBUG - We are deleting'); }
     method = 'DELETE';
-    var parsed_inputs = JSON.parse(service_definition);
-     
-    var as3uri = '/mgmt/shared/appsvcs/declare/localhost/'+tenant;
-    var uri = that.generateURI(host, as3uri);
-    var restOp = that.createRestOperation(uri, service_definition);
+
+    parsed_inputs = JSON.parse(service_definition);     
+    as3uri = '/mgmt/shared/appsvcs/declare/localhost/'+tenant;
+    uri = that.generateURI(host, as3uri);
+    restOp = that.createRestOperation(uri, service_definition);
     that.restRequestSender.sendDelete(restOp)
     .then (function (resp) {
-      logger.info('[GheListener] pushToIapp: Response: ' +JSON.stringify(resp.body.results));
+      if (DEBUG) { logger.info('[GheListener] - DEBUG - .pushToIapp() Response: ' +JSON.stringify(resp.body.results)); }
       cb(resp.body.results);
     })
     .catch (function (error) {
-      logger.info(error);
+      if (DEBUG) { logger.info('[GheListener] - DEBUG - .pushToIapp() Error: ' +error); }
       cb(error);
     });
           
   }
   else {
-    logger.info('we are deploying');
-    var as3uri = '/mgmt/shared/appsvcs/declare';
-    var uri = this.generateURI(host, as3uri);
-    var restOp = this.createRestOperation(uri, service_definition);          
+    if (DEBUG) { logger.info('[GheListener] - DEBUG - We are deploying'); }
+    as3uri = '/mgmt/shared/appsvcs/declare';
+    uri = this.generateURI(host, as3uri);
+    restOp = this.createRestOperation(uri, service_definition);          
     this.restRequestSender.sendPost(restOp)
     .then (function (resp) {
-      logger.info('[GheListener] pushToIapp: Response: ' +JSON.stringify(resp.body.results));
+      if (DEBUG) { logger.info('[GheListener] - DEBUG - .pushToIapp() Response: ' +JSON.stringify(resp.body.results)); }
       cb(resp.body.results);
     })
     .catch (function (error) {
-      logger.info(error);
+      if (DEBUG) { logger.info('[GhListener] - DEBUG - .pushToIapp() Error: ' +error); }
       cb(error);
     });
   
@@ -205,7 +224,7 @@ GheListener.prototype.getExampleState = function () {
   return {
     "config": {
       "ghe_ip_address":"[ip_address]",
-      "ghe_access_token": "[GitHub Access Token]"  ,
+      "ghe_access_token": "[GitHub Access Token]",
       "debug": "[true|false]"
     }
   };
