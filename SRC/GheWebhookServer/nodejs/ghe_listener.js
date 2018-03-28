@@ -44,6 +44,7 @@ GheListener.prototype.onStart = function(success, error) {
       success('[GheListener] State loaded...');
     }
   });
+
 };
 
 /**
@@ -107,6 +108,7 @@ GheListener.prototype.onPost = function(restOperation) {
     this.completeRestOperation(restOperation);
 
   }
+
 };
 
 /**
@@ -145,12 +147,13 @@ GheListener.prototype.pushToIapp = function (config, action, tenant, service_def
   if (action == 'delete') {
 
     if (DEBUG) { logger.info('[GheListener] - DEBUG - We are deleting'); }
-    method = 'DELETE';
 
+    method = 'DELETE';
     parsed_inputs = JSON.parse(service_definition);     
     as3uri = '/mgmt/shared/appsvcs/declare/localhost/'+tenant;
     uri = that.generateURI(host, as3uri);
     restOp = that.createRestOperation(uri, service_definition);
+
     that.restRequestSender.sendDelete(restOp)
     .then (function (resp) {
       if (DEBUG) { logger.info('[GheListener] - DEBUG - .pushToIapp() Response: ' +JSON.stringify(resp.body.results)); }
@@ -163,10 +166,13 @@ GheListener.prototype.pushToIapp = function (config, action, tenant, service_def
           
   }
   else {
+
     if (DEBUG) { logger.info('[GheListener] - DEBUG - We are deploying'); }
+
     as3uri = '/mgmt/shared/appsvcs/declare';
     uri = this.generateURI(host, as3uri);
     restOp = this.createRestOperation(uri, service_definition);          
+
     this.restRequestSender.sendPost(restOp)
     .then (function (resp) {
       if (DEBUG) { logger.info('[GheListener] - DEBUG - .pushToIapp() Response: ' +JSON.stringify(resp.body.results)); }
@@ -197,6 +203,7 @@ GheListener.prototype.generateURI = function (host, path) {
       hostname: host,
       path: path
   });
+
 };
 /**
 * Creates a new rest operation instance. Sets the target uri and body
@@ -214,6 +221,7 @@ GheListener.prototype.createRestOperation = function (uri, body) {
       .setBody(body.toString());
 
   return restOp;
+
 };
 
 /**
@@ -228,6 +236,7 @@ GheListener.prototype.getExampleState = function () {
       "debug": "[true|false]"
     }
   };
+  
 };
 
 module.exports = GheListener;
