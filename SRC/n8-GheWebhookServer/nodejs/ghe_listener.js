@@ -72,9 +72,12 @@ GheListener.prototype.onPost = function(restOperation) {
   if (typeof postData.config !== 'undefined' && postData.config) {
 
     //This is GheListener config data
-    logger.info('[GheListener] Config change. New settings: ' +JSON.stringify(postData, '', '\t'));
+    if (DEBUG) { logger.info('[GheListener - DEBUG] Config changed: ' +JSON.stringify(postData, '', '\t')); }
     this.state.config = postData.config;
 
+    restOperation.setBody(this.state.config);
+    this.completeRestOperation(restOperation);
+  
   }
 
   // Check we have the data to process a GitHub commit message
@@ -88,37 +91,49 @@ GheListener.prototype.onPost = function(restOperation) {
   // Check its a GitHub Commit message
   else if (typeof postData.repository !==  'undefined' && postData.repository) {
 
-    // This is a GitHub Commmit Message
-    var gheMsg = postData;
+    if (DEBUG) { logger.info("[GheListener - DEBUG] Message recevied from Github repo: " +postData.repository.name )};
+
+    // Data required to execute 
+    var jobOpts = {};
+
+    jobOpts.repo_name = postData.repository.name;
+    jobOpts.repo_fullname = postData.repository.fullname;
+
     var config = this.state.config; //Save some typing
     this.state.lastCommit = postData;
 
     if (DEBUG) { logger.info('[GheListener - DEBUG] - this.state: ' +JSON.stringify(this.state,'', '\t')); }
     var that = this;
 
-    if (DEBUG) { logger.info("[GheListener - DEBUG] - Activity from repository: " + gheMsg.repository.name); }
+    if (DEBUG) { logger.info("[GheListener - DEBUG] - Activity from repository: " + jobOpts.repo_name); }
 
-    GheUtil.parseCommitMessage(gheMsg, function(action, definitionPath) {
+    GheUtil.parseCommitMessage(postData, function(action, definitionPath) {
       if (DEBUG) { logger.info('[GheListener - DEBUG] - Action:' +action+ ' definitionPath: ' +definitionPath); }
+      jobOpts.action = action;
+      jobOpts.defPath = definitionPath;
 
-      GheUtil.getGheDownloadUrl(config, definitionPath, function(download_url) {
+      GheUtil.getGheDownloadUrl(config, jobOpts.defPath, function(download_url) {
         if (DEBUG) { logger.info('[GheListener - DEBUG] - Retrieved download_url: ' +download_url); }
+        jobOpts.url = download_url;
 
-        GheUtil.getServiceDefinition(config, download_url, function(service_definition) {
-          if (DEBUG) { logger.info('[GheListener - DEBUG] - Worker will ' +action+ ' - '  +service_definition); }
+        GheUtil.getServiceDefinition(config, jobOpts.url, function(service_def) {
+          if (DEBUG) { logger.info('[GheListener - DEBUG] - Worker will ' +action+ ' - '  +service_def); }
 
-          var parsed_inputs = JSON.parse(service_definition);
-          var declaration = parsed_inputs.declaration;
-          if (DEBUG) { logger.info('[GheListener - DEBUG] - declaration is: ' +declaration); }
+          var parsed_def = JSON.parse(service_def);
+//          var declaration = parsed_def.declaration;
+          if (DEBUG) { logger.info('[GheListener - DEBUG] - declaration is: ' +parsed_def); }
+          jobOpts.service_def = parsed_def;
           
-          Object.keys(declaration).forEach( function(key) {
-              if (declaration[key].class == 'Tenant' ) {
+          Object.keys(parsed_def).forEach( function(key) {
+              if (parsed_def[key].class == 'Tenant' ) {
                 if (DEBUG) { logger.info('[GheListener - DEBUG] - The \'Tenant\' is: ' +key); }
+                jobOpts.tenant = key;
 
-                that.pushToBigip(config, action, key, service_definition, function(results) {
+                that.pushToBigip(config, jobOpts, function(results) {
                   if (DEBUG) { logger.info('[GheListener - DEBUG] - AS3 Response: ' +JSON.stringify(results)); }
+                  jobOpts.results = results;
 
-                  GheUtil.createIssue(config, action, key, service_definition, results);
+                  GheUtil.createIssue(config, jobOpts);
                 });
               }
           });
@@ -127,14 +142,21 @@ GheListener.prototype.onPost = function(restOperation) {
     });
 
     // Respond to GHE WebHook Client
-    restOperation.setBody("[F5 iControl LX worker: GheListener] Thanks, GitHub!");
-    restOperation.setStatusCode('200');
-    restOperation.setContentType('text');
+    restOperation.setBody('[F5 iControl LX worker: GheListener] Thanks for the message, GitHub!')
+      .setStatusCode('200')
+      .setContentType('text');
     this.completeRestOperation(restOperation);
 
   }
   else {
-    logger.info('I have no idea what this data is... Maybe enable debug mode.' );
+
+    logger.info('I have no idea what this data is... Enable debug mode.');
+
+      restOperation.setBody('I have no idea what this data is... Enable debug mode.')
+      .setStatusCode('200')
+      .setContentType('text');
+    this.completeRestOperation(restOperation);
+
   }
 
 };
@@ -165,22 +187,22 @@ GheListener.prototype.onPut = function(restOperation) {
  * Deploy to AS3
  */
 
-GheListener.prototype.pushToBigip = function (config, action, tenant, service_definition, cb) {
+GheListener.prototype.pushToBigip = function (config, jobOpts, cb) {
 
   var host = '127.0.0.1';
   var that = this;
   var method = 'POST';
-  var parsed_inputs, as3uri, uri, restOp;
+  var as3uri, uri, restOp;
 
   if (action == 'delete') {
 
     if (DEBUG) { logger.info('[GheListener - DEBUG] - We are deleting'); }
 
     method = 'DELETE';
-    parsed_inputs = JSON.parse(service_definition);     
-    as3uri = '/mgmt/shared/appsvcs/declare/'+tenant;
+//    parsed_inputs = JSON.parse(service_def);     
+    as3uri = '/mgmt/shared/appsvcs/declare/'+jobOpts.tenant;
     uri = that.generateURI(host, as3uri);
-    restOp = that.createRestOperation(uri, service_definition);
+    restOp = that.createRestOperation(uri, jobOpts.service_def);
 
     that.restRequestSender.sendDelete(restOp)
     .then (function (resp) {
@@ -199,7 +221,7 @@ GheListener.prototype.pushToBigip = function (config, action, tenant, service_de
 
     as3uri = '/mgmt/shared/appsvcs/declare';
     uri = that.generateURI(host, as3uri);
-    restOp = that.createRestOperation(uri, service_definition);          
+    restOp = that.createRestOperation(uri, jobOpts.service_def);
 
     that.restRequestSender.sendPost(restOp)
     .then (function (resp) {
@@ -233,6 +255,7 @@ GheListener.prototype.generateURI = function (host, path) {
   });
 
 };
+
 /**
 * Creates a new rest operation instance. Sets the target uri and body
 *

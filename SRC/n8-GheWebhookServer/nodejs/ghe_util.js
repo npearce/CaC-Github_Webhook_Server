@@ -172,25 +172,26 @@ GheUtil.getDeletedServiceDefinition = function (config, download_url) {
 
 }
 
-GheUtil.createIssue = function(config, action, tenant, service_definition, results) {
+GheUtil.createIssue = function(config, jobOtps) {
 
     logger.info('IN: GheUtil.createIssue()');
 
-    var message = results[0].message;
-    var result = JSON.stringify(results[0], '', '\t');
+    var message = jobOpts.results[0].message;
+    var result = JSON.stringify(jobOpts.results[0], '', '\t');
 
     var data = JSON.stringify({
-        "title": action+ ' - ' +tenant+ ' - ' +message,
+        "title": jobOpts.action+ ' - ' +jobOpts.tenant+ ' - ' +message,
         "body": result,
         "labels": [ message ]
     });
 
     logger.info('GheUtil.createIssue().data' +data);
 
+    logger.info('\n\njobOpts.service_def.repo:' +jobOpts.service_def.repo+ '\n\n')
     var options = {
       "method": "POST",
       "hostname": config.ghe_ip_address,
-      "path": "/api/v3/repos/iacorg/ip-172-31-1-24.us-west-1.compute.internal/issues",
+      "path": '/api/v3/repos/' +jobOpts.repo_fullname+ '/issues',
       "headers": {
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
