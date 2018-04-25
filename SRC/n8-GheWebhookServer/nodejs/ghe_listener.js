@@ -36,10 +36,21 @@ GheListener.prototype.onStart = function(success, error) {
       error('[GheListener] Error loading state: ' +err);
     }
     else {
-      that.state = state;
-      if (that.state.config.debug === 'true') {
-        logger.info('[GheListener] DEBUG enabled...');
-        DEBUG = true;
+      if (typeof state !== 'undefined' && state !== null) {
+        // We loaded some persisted state
+        that.state = state;
+
+        // Checking persisted state for worker config
+        if (typeof that.state.config !== 'undefined') {
+
+          // Checking worker config for debug mode
+          if (typeof that.state.config.debug !== 'undefined' && that.state.config.debug === true ) {
+
+            logger.info('[GheListener] DEBUG enabled...');
+            DEBUG = true;
+          }
+        }
+
       }
       success('[GheListener] State loaded...');
     }
@@ -65,17 +76,23 @@ GheListener.prototype.onPost = function(restOperation) {
 
   if (DEBUG) { logger.info('[GheListener - DEBUG] - In GheListener.prototype.onPost()'); }
 
-  var postData = restOperation.getBody();
+  var postData = JSON.parse(restOperation.getBody());
 
   // Is this config data, or a GitHub Commit message?
-  logger.info('\n\n[GheListener] - is there a postData.config?: ' +postData.config);
+//  logger.info('\n\n[GheListener] - is there a postData?: ' +JSON.stringify(postData));
+//  logger.info('\n\n[GheListener] - is there a postData.config?: ' +JSON.stringify(postData.config));
   if (typeof postData.config !== 'undefined' && postData.config) {
 
     //This is GheListener config data
     if (DEBUG) { logger.info('[GheListener - DEBUG] Config changed: ' +JSON.stringify(postData, '', '\t')); }
-    this.state.config = postData.config;
 
-    restOperation.setBody(this.state.config);
+    logger.info('BEFORE: this.state: ' +JSON.stringify(this.state));
+//    this.state.config = postData.config;
+    this.state.config = {};
+    this.state.config = postData.config;
+    logger.info('AFTER: this.state: ' +JSON.stringify(this.state));
+
+    restOperation.setBody(this.state);
     this.completeRestOperation(restOperation);
   
   }
@@ -91,7 +108,7 @@ GheListener.prototype.onPost = function(restOperation) {
   // Check its a GitHub Commit message
   else if (typeof postData.repository !==  'undefined' && postData.repository) {
 
-    if (DEBUG) { logger.info("[GheListener - DEBUG] Message recevied from Github repo: " +postData.repository.name )};
+    if (DEBUG) { logger.info("[GheListener - DEBUG] Message recevied from Github repo: " +postData.repository.name); }
 
     // Data required to execute 
     var jobOpts = {};
@@ -120,12 +137,12 @@ GheListener.prototype.onPost = function(restOperation) {
           if (DEBUG) { logger.info('[GheListener - DEBUG] - Worker will ' +action+ ' - '  +service_def); }
 
           var parsed_def = JSON.parse(service_def);
-//          var declaration = parsed_def.declaration;
+          var declaration = parsed_def.declaration;
           if (DEBUG) { logger.info('[GheListener - DEBUG] - declaration is: ' +parsed_def); }
           jobOpts.service_def = parsed_def;
           
-          Object.keys(parsed_def).forEach( function(key) {
-              if (parsed_def[key].class == 'Tenant' ) {
+          Object.keys(declaration).forEach( function(key) {
+              if (declaration[key].class == 'Tenant' ) {
                 if (DEBUG) { logger.info('[GheListener - DEBUG] - The \'Tenant\' is: ' +key); }
                 jobOpts.tenant = key;
 
@@ -142,9 +159,8 @@ GheListener.prototype.onPost = function(restOperation) {
     });
 
     // Respond to GHE WebHook Client
-    restOperation.setBody('[F5 iControl LX worker: GheListener] Thanks for the message, GitHub!')
-      .setStatusCode('200')
-      .setContentType('text');
+    restOperation.setBody({ message: '[F5 iControl LX worker: GheListener] Thanks for the message, GitHub!' })
+      .setStatusCode('200');
     this.completeRestOperation(restOperation);
 
   }
@@ -152,9 +168,9 @@ GheListener.prototype.onPost = function(restOperation) {
 
     logger.info('I have no idea what this data is... Enable debug mode.');
 
-      restOperation.setBody('I have no idea what this data is... Enable debug mode.')
-      .setStatusCode('200')
-      .setContentType('text');
+      restOperation.setBody({ message: 'I have no idea what this data is... Enable debug mode.' })
+      .setStatusCode('200');
+//      .setContentType('text');
     this.completeRestOperation(restOperation);
 
   }
@@ -166,15 +182,16 @@ GheListener.prototype.onPost = function(restOperation) {
  */
 GheListener.prototype.onPut = function(restOperation) {
 
-  var newState = restOperation.getBody();
+  var newState = JSON.parse(restOperation.getBody());
   if (DEBUG) { logger.info('newState: ' +JSON.stringify(newState)); }
   
-  if (newState.config.debug === 'true') { 
+  if (typeof newState.config !== 'undefined' && newState.config.debug === 'true') { 
     logger.info('[GheListener] - Enabling debug mode...');
     DEBUG = true;
   }
   else {
     DEBUG = false;
+    this.state = {};
   }
 
   this.state = newState;
@@ -194,7 +211,7 @@ GheListener.prototype.pushToBigip = function (config, jobOpts, cb) {
   var method = 'POST';
   var as3uri, uri, restOp;
 
-  if (action == 'delete') {
+  if (jobOpts.action == 'delete') {
 
     if (DEBUG) { logger.info('[GheListener - DEBUG] - We are deleting'); }
 
