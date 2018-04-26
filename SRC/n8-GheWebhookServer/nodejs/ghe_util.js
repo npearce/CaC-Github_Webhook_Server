@@ -172,13 +172,13 @@ GheUtil.getDeletedServiceDefinition = function (config, download_url) {
 
 }
 
-GheUtil.createIssue = function(config, jobOtps) {
+GheUtil.createIssue = function(config, jobOpts) {
 
     logger.info('IN: GheUtil.createIssue()');
 
     var message = jobOpts.results[0].message;
     var result = JSON.stringify(jobOpts.results[0], '', '\t');
-
+    
     var data = JSON.stringify({
         "title": jobOpts.action+ ' - ' +jobOpts.tenant+ ' - ' +message,
         "body": result,
@@ -187,7 +187,6 @@ GheUtil.createIssue = function(config, jobOtps) {
 
     logger.info('GheUtil.createIssue().data' +data);
 
-    logger.info('\n\njobOpts.service_def.repo:' +jobOpts.service_def.repo+ '\n\n')
     var options = {
       "method": "POST",
       "hostname": config.ghe_ip_address,
@@ -208,7 +207,6 @@ GheUtil.createIssue = function(config, jobOtps) {
 
       res.on("end", function () {
         var body = Buffer.concat(chunks);
- //       if (DEBUG) { logger.info(body.toString()); }
       });
     });
 
