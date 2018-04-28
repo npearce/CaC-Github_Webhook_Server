@@ -174,7 +174,7 @@ GheUtil.getDeletedServiceDefinition = function (config, download_url) {
 
 GheUtil.createIssue = function(config, jobOpts) {
 
-    logger.info('IN: GheUtil.createIssue()');
+    if (config.debug) { logger.info('IN: GheUtil.createIssue()'); }
 
     var message = jobOpts.results[0].message;
     var result = JSON.stringify(jobOpts.results[0], '', '\t');
