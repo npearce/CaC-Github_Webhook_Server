@@ -41,8 +41,7 @@ GheListener.prototype.onStart = function(success, error) {
  */
 GheListener.prototype.onStartCompleted = function(success, error) {
 
-  logger.info('[GheListener] - Dependencies loaded, start up complete.');
-
+  logger.info('[GheListener] - Dependencies loaded, startup complete.');
   success();
 
 };
@@ -52,8 +51,7 @@ GheListener.prototype.onStartCompleted = function(success, error) {
  */
 GheListener.prototype.onGet = function(restOperation) {
 
-  //Respond with the 'config'
-  restOperation.setBody(config);
+  restOperation.setBody(this.state);
   this.completeRestOperation(restOperation);
 
 };
@@ -101,12 +99,7 @@ GheListener.prototype.onPost = function(restOperation) {
   
       jobOpts.repo_name = postData.repository.name;
       jobOpts.repo_fullname = postData.repository.full_name;
-  
-//      this.state.lastCommit = {};
-//      this.state.lastCommit = postData.head_commit;
-      
-//      if (DEBUG) { logger.info('[GheListener - DEBUG] - this.state: ' +JSON.stringify(this.state,'', '\t')); }
-  
+    
       if (DEBUG) { logger.info("[GheListener - DEBUG] - Activity from repository: " + jobOpts.repo_name); }
   
       GheUtil.parseCommitMessage(postData, function(action, definitionPath) {
