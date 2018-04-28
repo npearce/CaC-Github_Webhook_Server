@@ -29,10 +29,13 @@ GheSettings.prototype.onStart = function(success, error) {
 
         function (err, state) {
             if (err) {
-                error('[GheSettings] Error loading state:' +err);
+
+                error('[GheSettings] - Error loading state:' +err);
                 return;
+
             }
-            logger.info('[GheSettings] State loaded');
+
+            logger.info('[GheSettings] - State loaded.');
             me.state = state;
         }
 
@@ -57,7 +60,7 @@ GheSettings.prototype.onGet = function(restOperation) {
  */
 GheSettings.prototype.onPut = function(restOperation) {
 
-    // Use POST - its an all or none thing, anyway
+    // Use POST
     this.onPost(restOperation);
 
 };
@@ -72,12 +75,13 @@ GheSettings.prototype.onPost = function(restOperation) {
     // If there's no 
     if (!newState) {
 
-        restOperation.fail(new Error("[GheSettings} No state provided..."));
+        restOperation.fail(new Error("[GheSettings] - No state provided..."));
         return;
 
     }
     else {
 
+        logger.info('[GheSettings] - Settings updated.')
         this.state = newState;
 
     }

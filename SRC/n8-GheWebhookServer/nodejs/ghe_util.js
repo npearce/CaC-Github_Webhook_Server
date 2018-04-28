@@ -10,7 +10,6 @@
 
 var logger = require('f5-logger').getInstance();
 var http = require('https');
-//var YAML = require('yamljs');     // TODO Support YAML & JSON? iImplement 'try { JSON.parse }' else check if YAML...
 
 // Ignore self-signed cert
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -58,7 +57,7 @@ GheUtil.parseCommitMessage = function (gheMessage, cb) {
  */
 GheUtil.getGheDownloadUrl = function(config, objectPath, cb) {
 
-    logger.info("GheUtil.getGheDownloadUrl() fetching " +objectPath+ " from: " +config.ghe_ip_address);
+    if (config.debug === "true") { logger.info("[GheUtil - DEBUG] .getGheDownloadUrl() fetching " +objectPath+ " from: " +config.ghe_ip_address); }
   
     var options = {
       "method": "GET",
@@ -82,13 +81,13 @@ GheUtil.getGheDownloadUrl = function(config, objectPath, cb) {
   
         let parsed_results = JSON.parse(results);
   
-        logger.info("GheUtil.getGheDownloadUrl() - parsed_results.download_url " +parsed_results.download_url);
+        if (config.debug === "true") { logger.info("[GheUtil - DEBUG] .getGheDownloadUrl() - parsed_results.download_url " +parsed_results.download_url); }
   
         cb(parsed_results.download_url);
   
       });
     }).on("error", function (err) {
-      logger.info("GheUtil.getServiceDefinition: Error: " +err);
+        if (config.debug === "true") { logger.info("[GheUtil - DEBUG] .getServiceDefinition: Error: " +err); }
     });
     req.end();
   
@@ -99,7 +98,7 @@ GheUtil.getGheDownloadUrl = function(config, objectPath, cb) {
  */
 GheUtil.getServiceDefinition = function (config, download_url, cb) {
 
-    logger.info("GheUtil.getGheDownloadUrl fetched URL: " +download_url+ "\n Fetching Service Definition...");
+    if (config.debug === "true") { logger.info("[GheUtil - DEBUG] .getGheDownloadUrl fetched URL: " +download_url+ "\n Fetching Service Definition..."); }
   
     var options = {
         "method": "GET",
@@ -123,13 +122,13 @@ GheUtil.getServiceDefinition = function (config, download_url, cb) {
         res.on("end", function () {
             var body = Buffer.concat(chunks);
             var results = body.toString();
-            logger.info("GheUtil.getServiceDefinition() - results: " +results);
+            if (config.debug === "true") { logger.info("[GheUtil - DEBUG] .getServiceDefinition() - results: " +results); }
             cb(results);
         
         });
 
     }).on("error", function (err) {
-            logger.info("GheUtil.getServiceDefinition: Error: " +err);
+        if (config.debug === "true") { logger.info("[GheUtil - DEBUG] .getServiceDefinition: Error: " +err); }
     });
 
     req.end();
@@ -138,7 +137,7 @@ GheUtil.getServiceDefinition = function (config, download_url, cb) {
   
 GheUtil.getDeletedServiceDefinition = function (config, download_url) {
 
-    logger.info("GheUtil.getGheDownloadUrl fetched URL: " +download_url+ "\n Fetching Deleted Service Definition (from back in time)...");
+    if (config.debug === "true") { logger.info("[GheUtil - DEBUG] .getGheDownloadUrl fetched URL: " +download_url+ "\n Fetching Deleted Service Definition (from back in time)..."); }
 
     var options = {
         "method": "GET",
@@ -161,11 +160,11 @@ GheUtil.getDeletedServiceDefinition = function (config, download_url) {
     res.on("end", function () {
         var body = Buffer.concat(chunks);
         var results = body.toString();
-        logger.info("GheUtil.getDeletedServiceDefinition() - return results: " +results);
+        if (config.debug === "true") { logger.info("[GheUtil - DEBUG] .getDeletedServiceDefinition() - return results: " +results); }
     });
 
     }).on("error", function (err) {
-        logger.info("GheUtil.getServiceDefinition: Error: " +err);
+        if (config.debug === "true") { logger.info("[GheUtil - DEBUG] .getServiceDefinition: Error: " +err); }
     });
 
     req.end();
@@ -174,7 +173,7 @@ GheUtil.getDeletedServiceDefinition = function (config, download_url) {
 
 GheUtil.createIssue = function(config, jobOpts) {
 
-    if (config.debug) { logger.info('IN: GheUtil.createIssue()'); }
+    if (config.debug === "true") { logger.info('[GheUtil - DEBUG] IN: GheUtil.createIssue()'); }
 
     var message = jobOpts.results[0].message;
     var result = JSON.stringify(jobOpts.results[0], '', '\t');
@@ -185,7 +184,7 @@ GheUtil.createIssue = function(config, jobOpts) {
         "labels": [ message ]
     });
 
-    logger.info('GheUtil.createIssue().data' +data);
+    if (config.debug === "true") { logger.info('[GheUtil - DEBUG] .createIssue().data' +data); }
 
     var options = {
       "method": "POST",
