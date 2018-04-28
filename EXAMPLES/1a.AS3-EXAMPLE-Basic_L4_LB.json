@@ -16,7 +16,7 @@
                 "serviceMain": {
                     "class": "Service_HTTP",
                     "virtualAddresses": [
-                        "172.31.4.10"
+                        "172.31.4.11"
                     ],
                     "pool": "web_pool"
                 },
@@ -27,10 +27,11 @@
                     ],
                     "members": [
                         {
-                            "servicePort": 80,
+                            "servicePort": 8080,
                             "serverAddresses": [
-                                "192.0.1.10",
-                                "192.0.1.11"
+                                "172.31.10.101",
+                                "172.31.10.102",
+                                "172.31.10.103"
                             ]
                         }
                     ]

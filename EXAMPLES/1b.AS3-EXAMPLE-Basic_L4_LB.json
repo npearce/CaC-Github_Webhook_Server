@@ -19,7 +19,7 @@
                 "template": "http",
                 "serviceMain": {"class": "Service_HTTP",
                     "virtualAddresses": [
-                        "203.0.113.10"
+                        "172.31.4.11"
                     ],
                     "pool": "/T1/A1/web_pool",
                     "virtualPort": 80,
@@ -42,10 +42,11 @@
                     ],
                     "members": [
                         {
-                            "servicePort": 80,
+                            "servicePort": 8080,
                             "serverAddresses": [
-                                "192.0.2.10",
-                                "192.0.2.11"
+                                "172.31.10.101",
+                                "172.31.10.102",
+                                "172.31.10.103"
                             ],
                             "enable": true,
                             "connectionLimit": 0,
