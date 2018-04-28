@@ -1,35 +1,35 @@
 # Github Infrastructure-as-Code WebHook Server for F5 BIG-IP
 
-Using GitHub's Webhook feature, this Webhook Server automates Infrastructure as Code deployments.
+Using GitHub's Webhook feature, this Webhook Server automates Infrastructure as Code management of F5's BIG-IP devices (hardware or software).
 
 ## Description
 
-F5 has discovered customer interest in automated Infrastructure-as-Code models. Through the use of GitHub WebHooks, engineers may 'commit' service definitions to a 'deployment' repository, which results in F5 BIG-IP configurations. With this model, GitHub is providing a familiar developer interface (SCM) with "deployment configuration templates", which result in deployed configurations on technology typically unfamiliar to the engineer, like F5's BIG-IP application delivery controller.
+Infrastructure-as-Code has predominantely focussed on 'server' infrastructure. Brining this so the network industry, this 'Network Infrastructure as Code' solution allows engineers to 'commit' F5 BIG-IP service definitions to a Github repository, which results in configured F5 BIG-IP application services ready for application traffic. Installing this Webhook Server onto BIG-IP devices enables for the automated deployment of BIG-IP configurations directly via a Github Webhhok.
 
-The service definition 'commit' may be either JSON or YAML configuration data which, via a GitHub WebHook, is communicated to an F5 iControl LX worker (a custom declarative interface within the F5 BIG-IP REST API). The iControl LX worker translates the [JSON|YAML] service definition into a BIG-IP service configuration.
+This solution was written upon the iControl LX framework. Installed on a BIG-IP, this iControl LX worker presents a `/ghe_listener` REST end-point ready to receive Github 'commit' notifications.
 
 ## Requirements
 
-* Uses the AppSvcs_Integration v3.x (AS3) worker to translate service definitions into BIG-IP configurations.
+* Uses the AppSvcs_Integration v3.x (AS3) iControl LX worker to translate service definitions into BIG-IP configurations.
 
-> NOTE: iApps are configuration templates presented as declarative REST endpoints.
+> NOTE: AS3 is an F5 developed and supported iControl LX worker that greatly simplifies the programmable surface of BIG-IP.
 
 ### Concepts
 
 * **iControl** - The F5 BIG-IP REST API.
 * **iControl LX** - (iControl Language eXtension) The F5 BIG-IP REST API Framework, upon which you can create custom endpoints/workflows.
-* **iControl LX worker/microservice** - Some Javascript that is executed every time it's custom endpoint is hit with GET/POST/PUT/PATCH/DELETE.
+* **iControl LX worker/microservice** - Nodejs Javascript that is executed every time it's custom endpoint is hit with GET/POST/PUT/PATCH/DELETE.
 
 ## Workflow
 
 1. Engineer is ready to deploy a service.
-2. Engineer visits the "configuration as code" repo on GitHub and navigates to the '/templates' directory.
-3. Based on their applications/services requirements, the engineer selects the appropriate template. e.g. "Basic load-balancing", "SSL Offload", "Web Application Firewall", and so on.
-4. Engineer creates a new file in the '/deploy' directory using the template [JSON|YAML] (we could support both/either), and enters the unique deployment-specific data, e.g.: service name, server IP addresses, etc. **NOTE:** See template example below.
-5. A GitHub WebHook, configured with custom F5 iControl LX worker REST endpoint (a WebHook server) destination, communicates the commit as 'added', 'modified', or 'removed'.
+2. Engineer visits the devices "infrasutrcture as code" repository on GitHub and navigates to the '/templates' directory.
+3. Based on their requirements, the engineer selects the appropriate template. e.g. "Basic load-balancing", "SSL Offload", "Web Application Firewall", and so on.
+4. Engineer creates a new file in the '/deploy' directory using the template and enters the unique deployment-specific data, e.g.: service name, server IP addresses, etc. See template example below.
+5. A GitHub WebHook sends a Github 'commit' message to the iControl LX REST worker end-point, `/ghe_listener`.
 6. The iControl LX worker consumes and processes as appropriate.
-   1. If the WebHook commit message indicates "added" or "modified", the WebHook will retrieve the 'Service Definition' from GitHub and perform the deploy (if "added"), or re-deploy (if "modified").
-   2. If the WebHook commit message indicates "removed", there is no requirement to retrieve the 'Service Definition' from GitHub and the services configuration is immediately removed from the BIG-IP device.
+   1. The iContorl LX worker will parse the commit message and identify any service definition changes: if the commit has 'added', 'modified', or 'removed' a service definition.
+   2. When complete, the iControl LX worker will create a 'Github Issue' in the source repository with the results (success/failure) of the commit processing.
 
 ## Repository Structure
 
@@ -37,26 +37,29 @@ The service definition 'commit' may be either JSON or YAML configuration data wh
 GHE_IaC_WebHook
   |- README.md
   |- DIST
-    |- f5-appsvcs-3.0.0-21.noarch.rpm
-    |- GheWebhookServer-0.1.0-0001.noarch.rpm
+    |- f5-appsvcs-3.0.0-32.noarch.rpm
+    |- n8-GheWebhookServer-0.1.0-0005.noarch.rpm
   |- DOCS
     |- BIG-IP_SETUP.md
     |- GHE_SETUP.md
   |- EXAMPLES
-    |- 1.AS3-EXAMPLE-Basic_L4_LB.json
+    |- 1a.AS3-EXAMPLE-Basic_L4_LB.json
+    |- 1b.AS3-EXAMPLE-Basic_L4_LB.json
     |- 2.AS3-EXAMPLE-L7_LB_SSL_Offload.json
     |- 3.AS3-EXAMPLE-L7_LB_iRule.json
+    |- <more to come>
   |- SRC
     |- README.md
     |- GheWebhookServer
       |- nodesjs
         |- ghe_listener.js
+        |- ghe_settings.js
         |- ghe_util.js
 ```
 
 * `/DIST` - the RPMs to install onto BIG-IPs for IaC management.
-* `/DOCS` - the setup instructions for GHE an BIG-IP.
-* `/EXAMPLES` - containers templates for device on-boarding and for service deployments.
+* `/DOCS` - the setup and usage instructions for GHE an BIG-IP.
+* `/EXAMPLES` - contains AS3 service definition examples for configuring BIG-IP application services.
 * `/SRC` - the WebHook server iControl LX source.
 
 ## Example Service Definition Templates
@@ -68,7 +71,7 @@ GHE_IaC_WebHook
 ## Known Issues
 
 1. AS3 is currently 'alpha' code. (March 2018)
-2. GheWebhookServer only support one Service Definition per BIG-IP Tenant AS3. Feature request raised with AS3 team to support multiple Service Definitions per BIG-IP Tenant.
+2. GheWebhookServer only supports one Service Definition per BIG-IP Tenant AS3. Feature request raised with AS3 team to support multiple Service Definitions per BIG-IP Tenant.
 3. Weak deployment failure handling. See v0.2 details below.
 
 ## Feature Roadmap
@@ -76,13 +79,14 @@ GHE_IaC_WebHook
 | *Feature* | *Description* | *Release* |
 |-----------|---------------|-----------|
 | Webhook Server | Consumes Service Definitions and deploys to BIG-IP. Supports Deploy/Re-deploy/Delete operations. | v0.1 |
-| Issue reporting | Create GitHub Issue for failed deployments | v0.1 |
-| Service Feedback | Post Availability/Performance data back to GitHub | v0.2 |
+| Status reporting | Create GitHub Issue for failed deployments | v0.1 |
+| Test deploy | Use a 'test' branch to simulate a deployment | v0.2 |
+| Service Feedback | Post Availability/Performance data back to GitHub repository | v0.3 |
 
-**Details:**
+**Webhook Server:** The base webhook server running on BIG-IP. Consumes service definition commits (added/modified/delete) from Github webhook and deploys/modifies/deletes BIG-IP configurations through the AS3 iControl LX declarative interface worker.
 
-**Webhook Server:** The base webhook server running on BIG-IP. Consumes service definition commits (added/modified/delete) and deploys/modifies/deletes BIG-IP configurations through AS3.
+**Status reporting:** Create a 'GitHub Issue' to report success/failure of create/modify/delete operations.
 
-**Issue reporting:** Create a 'GitHub Issue' for failed AS3 create/modify/delete operations.
+**Service Feedback:** Post utilization/performance (throughput/concurrent connections) and availability (node/pool member monitor activity) data back to source repository.
 
-**Service Feedback:** Posting utilization/performance data back to repo.
+**Test Deployments:** Support service definitition validation by merging service definition to a 'test' branch merge and using AS3s 'dry-run' feature.
