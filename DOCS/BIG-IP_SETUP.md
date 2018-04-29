@@ -5,7 +5,6 @@ Contents:
 * Installing the F5 BIG-IP Github Webhook Server
 * Configuring the F5 BIG-IP Github Webhook Server
 
-
 ## Installation
 
 To implement this solution you must install with the AS3 worker and the GheWebhookServer worker. This document will cover the GheWebhookServer only. Details on AS3 cn be found: xxx (to be released May 1st).
@@ -42,12 +41,11 @@ Note the `"status":"FINISHED"` indicating that installation was successful.
 
 `curl -u <username>:<password> -X GET http://localhost:8100/mgmt/shared/n8/ghe_listener/available`
 
-Your response should be:
+Your response should be without error, e.g.:
 
 ```json
 {}
 ````
-
 
 ## Configuration
 
@@ -77,3 +75,23 @@ Example, using curl this woud look like:
 curl -u <username>:<password> -X POST -H 'Content-type: application/json' http://localhost:8100/mgmt/shared/n8/ghe_settings -d '{"config":{"ghe_ip_address": "172.31.1.200", "ghe_access_token": "b95bcc50728b2afdd779f450ae55b2246b1a5cb9"}}'
 ```
 
+## Troubleshooting
+
+Enable debug mode by POSTing to `/ghe_settings` like so:
+
+
+```sh
+POST https://{{bigip_mgmt_addr}}/mgmt/shared/n8/ghe_settings
+{
+    "config":
+        {
+            "ghe_ip_address": "{{x.x.x.x}}",
+            "ghe_access_token": "{{xxxxxxxxxxxxxxxxxx}}",
+            "debug": "true"
+        }
+}
+```
+
+This will push a **significat** volume of data to the BIG-IP log: `/var/log/restnoded/restnoded/log`
+
+NODE: Remember to disabe debug made with `"debug": "false"` when troubleshooting is complete. 
