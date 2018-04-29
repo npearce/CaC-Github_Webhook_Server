@@ -4,7 +4,7 @@ Using GitHub's Webhook feature, this Webhook Server automates Infrastructure as 
 
 ## Description
 
-Infrastructure-as-Code has predominantely focussed on 'server' infrastructure. Brining this so the network industry, this 'Network Infrastructure as Code' solution allows engineers to 'commit' F5 BIG-IP service definitions to a Github repository, which results in configured F5 BIG-IP application services ready for application traffic. Installing this Webhook Server onto BIG-IP devices enables for the automated deployment of BIG-IP configurations directly via a Github Webhhok.
+Infrastructure-as-Code has predominantely focussed on 'server' infrastructure. However, this 'Network Infrastructure as Code' solution allows engineers to 'commit' F5 BIG-IP service definitions to a Github repository, which results in configured F5 BIG-IP application services ready for application traffic. Installing this Webhook Server onto BIG-IP devices enables for the automated deployment of BIG-IP configurations directly via a Github Webhhok.
 
 This solution was written upon the iControl LX framework. Installed on a BIG-IP, this iControl LX worker presents a `/ghe_listener` REST end-point ready to receive Github 'commit' notifications.
 
