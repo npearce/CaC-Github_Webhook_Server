@@ -81,7 +81,7 @@ GheSettings.prototype.onPost = function(restOperation) {
     }
     else {
 
-        logger.info('[GheSettings] - Settings updated.')
+        logger.info('[GheSettings] - Settings updated.');
         this.state = newState;
 
     }

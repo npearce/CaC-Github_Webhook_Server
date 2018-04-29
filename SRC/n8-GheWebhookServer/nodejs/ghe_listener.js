@@ -130,21 +130,26 @@ GheListener.prototype.onPost = function(restOperation) {
                 if (config.debug === "true") { logger.info('\n\n[GheListener - DEBUG] - Calling to pushToBigip() with:\n\nconfig: ' +JSON.stringify(config,'', '\t')+ '\n\njobOpts: ' +JSON.stringify(jobOpts,'', '\t')+ '\n\n' ); }
   
                 that.pushToBigip(config, jobOpts, function(results) {
-                  jobOpts.results = results;
 
-                  logger.info('[GheListener] - Change results: ' +JSON.stringify(jobOpts.results));
+                  if (config.debug === "true") { logger.info('[GheListener] results: ' +results); }
+
+                  jobOpts.results = results;
+                    
+                  //TODO - use 'try { JSON.parse() }  maybe?????
+                  logger.info('[GheListener] - Change results (nostringify): ' +jobOpts.results); // this supports errors
+
+                  logger.info('[GheListener] - Change results: ' +JSON.stringify(jobOpts.results)); // this does not support errors
 
                   if (config.debug === "true") { logger.info('\n\n[GheListener - DEBUG] - Deployed to BIG-IP with:\n\nconfig: ' +JSON.stringify(config,'', '\t')+ '\n\njobOpts: ' +JSON.stringify(jobOpts,'', '\t')+ '\n\n' ); }
                   GheUtil.createIssue(config, jobOpts);
-                  
+
                 });
               }
             });
           });
         });
-      });        
+      });
     }
-
   });
 
   let restOpBody = { message: '[F5 iControl LX worker: GheListener] Thanks for the message, GitHub!' };  
@@ -171,16 +176,30 @@ GheListener.prototype.pushToBigip = function (config, jobOpts, cb) {
     method = 'DELETE';
     as3uri = '/mgmt/shared/appsvcs/declare/'+jobOpts.tenant;
     uri = that.generateURI(host, as3uri);
-    restOp = that.createRestOperation(uri, jobOpts.service_def); //TODO you don't need a service def to delete....
+    restOp = that.createRestOperation(uri, JSON.stringify(jobOpts.service_def)); //TODO you don't need a service def to delete....
 
     that.restRequestSender.sendDelete(restOp)
     .then (function (resp) {
       if (config.debug === "true") { logger.info('[GheListener - DEBUG] - .pushToBigip() Delete Response: ' +JSON.stringify(resp.body.results,'', '\t')); }
-      cb(resp.body.results);
+
+      let response = {
+        message: resp.body.results[0].message,
+        details: resp.body.results[0]
+      };
+
+      cb(response);
+
     })
     .catch (function (error) {
       if (config.debug === "true") { logger.info('[GheListener - DEBUG] - .pushToBigip() Delete Error: ' +error); }
-      cb(error);
+
+      let response = {
+        message: "Error",
+        details:  error.toString()
+      };
+
+      cb(response);
+
     });
 
   }
@@ -195,11 +214,25 @@ GheListener.prototype.pushToBigip = function (config, jobOpts, cb) {
     that.restRequestSender.sendPost(restOp)
     .then (function (resp) {
       if (config.debug === "true") { logger.info('[GheListener - DEBUG] - .pushToBigip() Post Response: ' +JSON.stringify(resp.body.results,'', '\t')); }
-      cb(resp.body.results);
+
+      let response = {
+        message: resp.body.results[0].message,
+        details: resp.body.results[0]
+      };
+
+      cb(response);
+
     })
     .catch (function (error) {
       if (config.debug === "true") { logger.info('[GheListener - DEBUG] - .pushToBigip() Post Error: ' +error); }
-      cb(error);
+
+      let response = {
+          message: "Error",
+          details:  error.toString()
+      };
+      
+      cb(response);
+
     });
   
   }

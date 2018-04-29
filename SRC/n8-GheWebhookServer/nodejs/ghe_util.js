@@ -175,13 +175,13 @@ GheUtil.createIssue = function(config, jobOpts) {
 
     if (config.debug === "true") { logger.info('[GheUtil - DEBUG] IN: GheUtil.createIssue()'); }
 
-    var message = jobOpts.results[0].message;
-    var result = JSON.stringify(jobOpts.results[0], '', '\t');
+//    var message = jobOpts.results[0].message;
+//    var result = JSON.stringify(jobOpts.results[0], '', '\t');
     
     var data = JSON.stringify({
-        "title": jobOpts.action+ ' - ' +jobOpts.tenant+ ' - ' +message,
-        "body": result,
-        "labels": [ message ]
+        "title": jobOpts.action+ ' - ' +jobOpts.tenant+ ' - ' +jobOpts.results.message,
+        "body": JSON.stringify(jobOpts.results.details, '', '\t'),
+        "labels": [ jobOpts.results.message ]
     });
 
     if (config.debug === "true") { logger.info('[GheUtil - DEBUG] .createIssue().data' +data); }
