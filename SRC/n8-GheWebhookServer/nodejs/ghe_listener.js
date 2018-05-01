@@ -131,11 +131,9 @@ GheListener.prototype.onPost = function(restOperation) {
   
                 that.pushToBigip(config, jobOpts, function(results) {
 
-//                  if (config.debug === "true") { logger.info('[GheListener] results: ' +results); }
+                  if (config.debug === "true") { logger.info('[GheListener] - Change results: ' +JSON.stringify(jobOpts.results)); }
 
                   jobOpts.results = results;
-
-                  logger.info('[GheListener] - Change results: ' +JSON.stringify(jobOpts.results));
 
                   if (config.debug === "true") { logger.info('\n\n[GheListener - DEBUG] - Deployed to BIG-IP with:\n\nconfig: ' +JSON.stringify(config,'', '\t')+ '\n\njobOpts: ' +JSON.stringify(jobOpts,'', '\t')+ '\n\n' ); }
                   GheUtil.createIssue(config, jobOpts);
@@ -212,7 +210,6 @@ GheListener.prototype.pushToBigip = function (config, jobOpts, cb) {
     restOp.setMethod('Post');
 
     if (config.debug === "true") { logger.info('[GheListener - DEBUG] - Seding: ' +JSON.stringify(restOp)); }
-
 
     that.restRequestSender.sendPost(restOp)
     .then (function (resp) {
