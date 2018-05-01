@@ -10,7 +10,7 @@ This solution was written upon the iControl LX framework. Installed on a BIG-IP,
 
 ## Requirements
 
-* Uses the AppSvcs_Integration v3.x (AS3) iControl LX worker to translate service definitions into BIG-IP configurations.
+* Uses the AppSvcs_Integration v3.x (AS3) iControl LX worker to translate service definitions into BIG-IP configurations. Read more about this awesome API Surface here: http://clouddocs.f5.com/products/extensions/f5-appsvcs-extension/3/
 
 > NOTE: AS3 is an F5 developed and supported iControl LX worker that greatly simplifies the programmable surface of BIG-IP.
 
@@ -37,8 +37,8 @@ This solution was written upon the iControl LX framework. Installed on a BIG-IP,
 GHE_IaC_WebHook
   |- README.md
   |- DIST
-    |- f5-appsvcs-3.0.0-32.noarch.rpm
-    |- n8-GheWebhookServer-0.1.0-0005.noarch.rpm
+    |- f5-appsvcs-3.0.0-34.noarch.rpm
+    |- n8-GheWebhookServer-0.1.0-0007.noarch.rpm
   |- DOCS
     |- BIG-IP_SETUP.md
     |- GHE_SETUP.md
@@ -62,12 +62,6 @@ GHE_IaC_WebHook
 * `/EXAMPLES` - contains AS3 service definition examples for configuring BIG-IP application services.
 * `/SRC` - the WebHook server iControl LX source.
 
-## Example Service Definition Templates
-
-* [EXAMPLE - Basic L4 Load-balancing](./EXAMPLES/1.AS3-EXAMPLE-Basic_L4_LB.json)
-* [EXAMPLE - L7 Traffic Steering w/ URI routing (iRule)](./EXAMPLES/2.AS3-EXAMPLE-L7_LB_iRule.json)
-* [EXAMPLE - L7 Traffic Steering w/ Network Firewall (AFM)](./EXAMPLES/3.AS3-EXAMPLE-L7_LB_Firewall.json)
-
 ## Known Issues
 
 1. AS3 is currently 'alpha' code. (March 2018)
@@ -80,7 +74,7 @@ GHE_IaC_WebHook
 |-----------|---------------|-----------|
 | Webhook Server | Consumes Service Definitions and deploys to BIG-IP. Supports Deploy/Re-deploy/Delete operations. | v0.1 |
 | Status reporting | Create GitHub Issue for failed deployments | v0.1 |
-| Test deploy | Use a 'test' branch to simulate a deployment | v0.2 |
+| Test deploy | Use a 'test' branch to simulate a deployment (validate config) | v0.2 |
 | Service Feedback | Post Availability/Performance data back to GitHub repository | v0.3 |
 
 **Webhook Server:** The base webhook server running on BIG-IP. Consumes service definition commits (added/modified/delete) from Github webhook and deploys/modifies/deletes BIG-IP configurations through the AS3 iControl LX declarative interface worker.
