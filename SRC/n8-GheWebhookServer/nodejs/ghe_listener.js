@@ -131,14 +131,11 @@ GheListener.prototype.onPost = function(restOperation) {
   
                 that.pushToBigip(config, jobOpts, function(results) {
 
-                  if (config.debug === "true") { logger.info('[GheListener] results: ' +results); }
+//                  if (config.debug === "true") { logger.info('[GheListener] results: ' +results); }
 
                   jobOpts.results = results;
-                    
-                  //TODO - use 'try { JSON.parse() }  maybe?????
-                  logger.info('[GheListener] - Change results (nostringify): ' +jobOpts.results); // this supports errors
 
-                  logger.info('[GheListener] - Change results: ' +JSON.stringify(jobOpts.results)); // this does not support errors
+                  logger.info('[GheListener] - Change results: ' +JSON.stringify(jobOpts.results));
 
                   if (config.debug === "true") { logger.info('\n\n[GheListener - DEBUG] - Deployed to BIG-IP with:\n\nconfig: ' +JSON.stringify(config,'', '\t')+ '\n\njobOpts: ' +JSON.stringify(jobOpts,'', '\t')+ '\n\n' ); }
                   GheUtil.createIssue(config, jobOpts);
@@ -191,11 +188,13 @@ GheListener.prototype.pushToBigip = function (config, jobOpts, cb) {
 
     })
     .catch (function (error) {
-      if (config.debug === "true") { logger.info('[GheListener - DEBUG] - .pushToBigip() Delete Error: ' +error); }
+      let errorBody = error.getResponseOperation().getBody();
+      let errorStatusCode = error.getResponseOperation().getStatusCode();
+      if (config.debug === "true") { logger.info('[GheListener - DEBUG] - .pushToBigip() Delete Error: ' +JSON.stringify(errorBody)); }
 
       let response = {
-        message: "Error",
-        details:  error.toString()
+          message: "Error: " +errorStatusCode,
+          details: JSON.stringify(errorBody)
       };
 
       cb(response);
@@ -210,10 +209,14 @@ GheListener.prototype.pushToBigip = function (config, jobOpts, cb) {
     as3uri = '/mgmt/shared/appsvcs/declare';
     uri = that.generateURI(host, as3uri);
     restOp = that.createRestOperation(uri, JSON.stringify(jobOpts.service_def));
+    restOp.setMethod('Post');
+
+    if (config.debug === "true") { logger.info('[GheListener - DEBUG] - Seding: ' +JSON.stringify(restOp)); }
+
 
     that.restRequestSender.sendPost(restOp)
     .then (function (resp) {
-      if (config.debug === "true") { logger.info('[GheListener - DEBUG] - .pushToBigip() Post Response: ' +JSON.stringify(resp.body.results,'', '\t')); }
+      if (config.debug === "true") { logger.info('[GheListener - DEBUG] - .pushToBigip() Post Response: ' +JSON.stringify(resp.body.results, '', '\t')); }
 
       let response = {
         message: resp.body.results[0].message,
@@ -224,11 +227,13 @@ GheListener.prototype.pushToBigip = function (config, jobOpts, cb) {
 
     })
     .catch (function (error) {
-      if (config.debug === "true") { logger.info('[GheListener - DEBUG] - .pushToBigip() Post Error: ' +error); }
+      let errorBody = error.getResponseOperation().getBody();
+      let errorStatusCode = error.getResponseOperation().getStatusCode();
+      if (config.debug === "true") { logger.info('[GheListener - DEBUG] - .pushToBigip() POST error: ' +JSON.stringify(errorBody)); }
 
       let response = {
-          message: "Error",
-          details:  error.toString()
+          message: "Error: " +errorStatusCode,
+          details: JSON.stringify(errorBody)
       };
       
       cb(response);
