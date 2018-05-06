@@ -64,9 +64,8 @@ GHE_IaC_WebHook
 
 ## Known Issues
 
-1. AS3 is currently 'alpha' code. (March 2018)
-2. GheWebhookServer only supports one Service Definition per BIG-IP Tenant AS3. Feature request raised with AS3 team to support multiple Service Definitions per BIG-IP Tenant.
-3. Weak deployment failure handling. See v0.2 details below.
+1. GheWebhookServer only supports one Service Definition per BIG-IP Tenant AS3. Feature request raised with AS3 team to support multiple Service Definitions per BIG-IP Tenant.
+2. Some Github issue 'error' notifications are not actually errors, and are just notifications.
 
 ## Feature Roadmap
 
