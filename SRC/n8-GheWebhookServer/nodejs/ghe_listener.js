@@ -149,13 +149,23 @@ BigStats.prototype.getConfig = function () {
     .then ((resp) => {
 
       if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getConfig() Response: ' +JSON.stringify(resp.body.config,'', '\t')); }
-      resolve(resp.body.config);
+
+      if (typeof resp.body.config !== 'undefined') {
+
+        resolve(resp.body.config);
+
+      }
+      else {
+
+        reject('[GheListener - ERROR] getConfig() -  unable to retrieve config');
+
+      }
 
     })
-    .catch ((error) => {
+    .catch ((err) => {
 
-      logger.info('[GheListener] - Error retrieving settings: ' +error);
-      reject(error);
+      logger.info('[GheListener] - Error retrieving settings: ' +err);
+      reject(err);
 
     });
 
