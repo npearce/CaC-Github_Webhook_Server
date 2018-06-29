@@ -66,16 +66,15 @@ GheListener.prototype.onPost = function(restOperation) {
   // Grab the settings from /ghe_settings worker, then.... do this
   getConfig.then((config) => {
 
-    // Is it from Github
+    // Is the POST from Github?
     if (typeof postData.head_commit !==  'undefined' && postData.head_commit) {
+
+      this.state.head_commit.id = postData.head_commit.id;
   
       logger.info("[GheListener] Message recevied from Github repo: " +postData.repository.full_name);
-      
-      // Data required to execute each commit job
-      var jobOpts = {};
-  
-      jobOpts.repo_name = postData.repository.name;
-      jobOpts.repo_fullname = postData.repository.full_name;
+        
+      this.state.repo_name = postData.repository.name;
+      this.state.repo_fullname = postData.repository.full_name;
     
       if (config.debug === "true") { logger.info("[GheListener - DEBUG] - Activity from repository: " + jobOpts.repo_name); }
   
@@ -152,7 +151,8 @@ BigStats.prototype.getConfig = function () {
 
       if (typeof resp.body.config !== 'undefined') {
 
-        resolve(resp.body.config);
+        this.config = resp.body.config;
+        resolve(this.config);
 
       }
       else {
@@ -174,13 +174,58 @@ BigStats.prototype.getConfig = function () {
 };
 
 /**
+ * Parse the commit message to identify acctions: add/modify/delete
+ * 
+ * @returns {Promise} Promise Object representing array of actions
+ */
+BigStats.prototype.parseCommitMessage = function (commitMessage) {
+
+  this.state.actions = {};
+
+  // Iterate through 'commits' array to handle added|modified|removed definitions
+  commitMessage.commits.map((element) => {
+
+    // Handle new service definitions.
+    if (element.added.length > 0) {
+
+      this.state.actions.add = [];
+      let deployFile = element.added.toString();
+      let deployFilePath = "/api/v3/repos/" + element.repository.full_name + "/contents/" + deployFile;
+
+      let addition = { [deployFile]: deployFilePath };
+      this.state.actions.add.push(addition);
+
+    }
+
+    // Handle modified service definitions.
+    if (gheMessage.commits[i].modified.length > 0) {
+        let action = 'modify';
+        let deployFile = gheMessage.commits[i].modified.toString();
+        let deployFilePath = "/api/v3/repos/" + gheMessage.repository.full_name + "/contents/" + deployFile;
+        cb(action, deployFilePath);
+    }
+
+    // Handle deleted service definitions.
+    if (gheMessage.commits[i].removed.length > 0) {
+        let action = 'delete';
+        let deletedFile = gheMessage.commits[i].removed.toString();
+        // The file existed in the previous commmit, before the deletion...
+        let previousCommit = gheMessage.before;
+        let deletedFilePath = "/api/v3/repos/" + gheMessage.repository.full_name + "/contents/" + deletedFile + "?ref=" + previousCommit;    
+        cb(action, deletedFilePath);
+    }
+
+  });
+
+};
+
+/**
  * Deploy to AS3 (App Services 3.0 - declarative interface)
  */
 GheListener.prototype.pushToBigip = function (config, jobOpts, cb) {
 
   var host = '127.0.0.1';
   var that = this;
-  var method = 'POST';
   var as3uri, uri, restOp;
 
   if (jobOpts.action == 'delete') {
