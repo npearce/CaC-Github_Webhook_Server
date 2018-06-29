@@ -1,20 +1,27 @@
 /*
 *   GheListener:
-*     GitHub Enterprise webhook message router.
+*     GitHub Enterprise Webhook Server for F5 BIG-IP.
 *
-*   N. Pearce, April 2018
+*   N. Pearce, June 2018
 *   http://github.com/npearce
 *
 */
 "use strict";
 
 const logger = require('f5-logger').getInstance();
-const http = require('http');
-const GheUtil = require('./ghe_util.js');
+const GheUtil = require('./ghe_util.js');  //TODO: eliminate this!!!
 const gheSettingsPath = '/shared/n8/ghe_settings';
+const octokit = require('@octokit/rest')({
+  timeout: 0, // 0 means no request timeout
+  headers: {
+    accept: 'application/vnd.github.v3+json',
+    'user-agent': 'octokit/rest.js v1.2.3' // v1.2.3 will be current version
+  }});
 var DEBUG = false;
 
 function GheListener() {
+  this.config = {};
+  this.state = {};
 }
 
 GheListener.prototype.WORKER_URI_PATH = "shared/n8/ghe_listener";
@@ -64,26 +71,6 @@ GheListener.prototype.onPost = function(restOperation) {
 
   var that = this;
   var postData = restOperation.getBody();
-
-  // Grab the settings from /ghe_settings worker
-  var getConfig = new Promise((resolve, reject) => {
-
-    let uri = that.generateURI('127.0.0.1', '/mgmt'+gheSettingsPath);
-    let restOp = that.createRestOperation(uri, 'meh');
-
-    if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getConfig() Attemtped to fetch config...'); }
-
-    that.restRequestSender.sendGet(restOp)
-    .then (function (resp) {
-      if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getConfig() Response: ' +JSON.stringify(resp.body.config,'', '\t')); }
-      resolve(resp.body.config);
-    })
-    .catch (function (error) {
-      logger.info('[GheListener] - Error retrieving settings: ' +error);
-      reject(error);
-    });
-    
-  });
 
   // Grab the settings from /ghe_settings worker, then.... do this
   getConfig.then((config) => {
@@ -153,6 +140,37 @@ GheListener.prototype.onPost = function(restOperation) {
   
 };
 
+/**
+ * Fetches operational settings from persisted state worker, GheSettings
+ * 
+ * @returns {Promise} Promise Object representing operating settings retreived from GheSettings (persisted state) worker
+ */
+BigStats.prototype.getConfig = function () {
+  
+  return new Promise((resolve, reject) => {
+
+    let uri = this.restHelper.makeRestnodedUri('/mgmt' +gheSettingsPath);
+    let restOp = this.createRestOperation(uri);
+
+    if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getConfig() Attemtped to fetch config...'); }
+
+    this.restRequestSender.sendGet(restOp)
+    .then ((resp) => {
+
+      if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getConfig() Response: ' +JSON.stringify(resp.body.config,'', '\t')); }
+      resolve(resp.body.config);
+
+    })
+    .catch ((error) => {
+
+      logger.info('[GheListener] - Error retrieving settings: ' +error);
+      reject(error);
+
+    });
+
+  });
+
+};
 
 /**
  * Deploy to AS3 (App Services 3.0 - declarative interface)
@@ -257,7 +275,6 @@ GheListener.prototype.generateURI = function (host, path) {
       hostname: host,
       path: path
   });
-
 };
 
 /**
@@ -272,8 +289,11 @@ GheListener.prototype.createRestOperation = function (uri, body) {
 
   var restOp = this.restOperationFactory.createRestOperationInstance()
       .setUri(uri)
-      .setIdentifiedDeviceRequest(true)
-      .setBody(body.toString()); //TODO check if there is a body (might be a deletion)
+      .setIdentifiedDeviceRequest(true);
+
+      if (body) {
+        restOp.setBody(body);
+      }
 
   return restOp;
 
