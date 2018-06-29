@@ -17,7 +17,8 @@ const octokit = require('@octokit/rest')({
     accept: 'application/vnd.github.v3+json',
     'user-agent': 'octokit/rest.js v1.2.3' // v1.2.3 will be current version
   }});
-var DEBUG = false;
+
+  var DEBUG = false;
 
 function GheListener() {
   this.config = {};
@@ -38,16 +39,6 @@ GheListener.prototype.onStart = function(success, error) {
   // Make GheSettings worker a dependency.
   var gheSettingsUrl = this.restHelper.makeRestnodedUri(gheSettingsPath);
   this.dependencies.push(gheSettingsUrl);
-  success();
-
-};
-
-/**
- * handle onStartCompleted
- */
-GheListener.prototype.onStartCompleted = function(success, error) {
-
-  logger.info('[GheListener] - Dependencies loaded, startup complete.');
   success();
 
 };
