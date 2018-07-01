@@ -9,38 +9,13 @@
 "use strict";
 
 const logger = require('f5-logger').getInstance();
-const GheUtil = require('./ghe_util.js');  //TODO: eliminate this!!!
 const gheSettingsPath = '/shared/n8/ghe_settings';
-var https = require('https');
 
 const octokit = require('@octokit/rest')({
-  debug: true,
-//  baseUrl: 'https://172.31.1.200/api/v3',
   headers: {
     accept: 'application/vnd.github.v3+json'
   }
-//  agent
 });
-
-/*
-const octokit = require('@octokit/rest')({
-  baseUrl: 'https://172.31.1.200',
-  host: '172.31.1.200',
-  timeout: 0, // 0 means no request timeout
-  headers: {
-    accept: 'application/vnd.github.v3+json',
-    Authorization: Bearer 3c02a6288c5d7d6a3193e617b639a3d05bb549b7
-  },
-  rejectUnauthorized: false,
-  authenticate: {
-//    type: 'oauth',
-//    token: '3c02a6288c5d7d6a3193e617b639a3d05bb549b7'
-    type: 'basic',
-    username: 'iacadmin',
-    password: 'iacadmin1'
-  }});
-
-  */
 
 var DEBUG = false;
 
@@ -140,47 +115,7 @@ GheListener.prototype.onPost = function(restOperation) {
 
     });
   
-/*
-        GheUtil.getGheDownloadUrl(config, jobOpts.defPath, function(download_url) {
-          if (config.debug === "true") { logger.info('[GheListener - DEBUG] - Retrieved download_url: ' +download_url); }
-          jobOpts.url = download_url;
-  
-          GheUtil.getServiceDefinition(config, jobOpts.url, function(service_def) {
-            if (config.debug === "true") { logger.info('[GheListener - DEBUG] - Worker will ' +action+ ' - '  +service_def); }    
-            var parsed_def = JSON.parse(service_def);
-            var declaration = parsed_def.declaration;
-  
-            if (config.debug === "true") { logger.info('[GheListener - DEBUG] - declaration is: ' +service_def); }
-            jobOpts.service_def = parsed_def;
-            
-            Object.keys(declaration).forEach( function(key) {
-              if (config.debug === "true") { logger.info('[GheListener - DEBUG] processing declaration keys. Key is: ' +key); }
-  
-              if (declaration[key].class == 'Tenant' ) {
-                if (config.debug === "true") { logger.info('[GheListener - DEBUG] - The \'Tenant\' is: ' +key); }  
-                jobOpts.tenant = key;
-
-                logger.info('[GheListener] - Deploying change to tenant: ' +jobOpts.tenant);
-  
-                if (config.debug === "true") { logger.info('\n\n[GheListener - DEBUG] - Calling to pushToBigip() with:\n\nconfig: ' +JSON.stringify(config,'', '\t')+ '\n\njobOpts: ' +JSON.stringify(jobOpts,'', '\t')+ '\n\n' ); }
-  
-                that.pushToBigip(config, jobOpts, function(results) {
-
-                  if (config.debug === "true") { logger.info('[GheListener] - Change results: ' +JSON.stringify(jobOpts.results)); }
-
-                  jobOpts.results = results;
-
-                  if (config.debug === "true") { logger.info('\n\n[GheListener - DEBUG] - Deployed to BIG-IP with:\n\nconfig: ' +JSON.stringify(config,'', '\t')+ '\n\njobOpts: ' +JSON.stringify(jobOpts,'', '\t')+ '\n\n' ); }
-                  GheUtil.createIssue(config, jobOpts);
-
-                });
-              }
-            });
-          });
-        });
-        */
-    }
-//  });
+  }
 
   let restOpBody = { message: '[F5 iControl LX worker: GheListener] Thanks for the message, GitHub!' };  
   restOperation.setBody(restOpBody);
