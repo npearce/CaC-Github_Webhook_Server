@@ -13,18 +13,13 @@ const GheUtil = require('./ghe_util.js');  //TODO: eliminate this!!!
 const gheSettingsPath = '/shared/n8/ghe_settings';
 var https = require('https');
 
-const agent = new https.Agent({
-  ca: 'invalid',
-  rejectUnauthorized: false
-});
-
 const octokit = require('@octokit/rest')({
   debug: true,
-  baseUrl: 'https://172.31.1.200/api/v3',
+//  baseUrl: 'https://172.31.1.200/api/v3',
   headers: {
     accept: 'application/vnd.github.v3+json'
-  },
-  agent
+  }
+//  agent
 });
 
 /*
@@ -90,28 +85,25 @@ GheListener.prototype.onPost = function(restOperation) {
   if (DEBUG === true) { logger.info('[GheListener - DEBUG] - In GheListener.prototype.onPost()'); }
 
   var postData = restOperation.getBody();
-  
-//  logger.info('Recieved: ' +JSON.stringify(postData, '', '\t'));
-//  logger.info('Recieved: postData.repository: ' +JSON.stringify(postData.repository, '', '\t'));
-  
+    
   // Is the POST from Github?
   if (typeof postData.head_commit !==  'undefined' && postData.head_commit) {
 
     // Collect values we need for processing
     this.state.head_commit_id = postData.head_commit.id;
+    this.state.owner = postData.repository.owner.name;
+//    this.state.repo = postData.ref //TODO: Grab the branch from here.
     this.state.repo_name = postData.repository.name;
     this.state.repo_fullname = postData.repository.full_name;
 
     if (DEBUG === true) { logger.info("[GheListener] Message recevied from Github repo: " +postData.repository.full_name); }
 
     // Grab the settings from /ghe_settings worker, then.... do this
-
     this.getConfig()
     .then(() => {
 
       // Commence parsing the commit message for work to do.
       return this.parseCommitMessage(postData);
-
 
     })
     .then((actions) => {
@@ -123,16 +115,20 @@ GheListener.prototype.onPost = function(restOperation) {
       return this.getServiceDefinition();
 
     })
-
     .then((service_def) => {
-      
+
       logger.info('Service Def is: ' +JSON.stringify(service_def));
+      return this.applyServiceDefinition(service_def);
+
+    })
+    .then((resp) => {
+
+      logger.info('applyServiceDefinition() resp: ' +JSON.stringify(resp));
 
     })
     .catch((err) => {
+
       logger.info('err in master promise chain: ' +JSON.stringify(err));
-      //Get Service Definition
-//        return this.getServiceDefinition();
 
     });
   
@@ -213,6 +209,7 @@ GheListener.prototype.getConfig = function () {
         }
 
         this.config = resp.body.config;
+        this.config.baseUrl = 'https://'+resp.body.config.ghe_ip_address+'/api/v3';
         resolve();
 
       }
@@ -310,44 +307,41 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
  */
 GheListener.prototype.getServiceDefinition = function () {
 
-/**
- * 
-  octokit.repos.getContent({
-    owner: 'octokit',
-    repo: 'rest.js',
-    path: 'examples/getContent.js'
-  })
-
-  .then(result => {
-    // content will be base64 encoded
-    const content = Buffer.from(result.data.content, 'base64').toString()
-    console.log(content)
-  })
- */
-
   return new Promise((resolve, reject) => {
 
     octokit.authenticate({
       type: 'oauth',
-      token: '3c02a6288c5d7d6a3193e617b639a3d05bb549b7'
+      token: this.config.ghe_access_token
     });
 
-
-    octokit.repos.getContent({owner: 'iacorg', repo: 'ip-172-31-1-20.us-west-1.compute.internal', path: 'README.md'})
-
+//    this.config.baseUrl = 'https://172.31.1.200/api/v3';
+    octokit.repos.getContent({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, path: 'SERVICE/sd1.json'})
 //    octokit.repos.getContent(options)
 //    octokit.repos.getAll()
     .then(result => {
-
-//      logger.info('\n\n' +JSON.stringify(result, '', '\t'));  // All of the data about the object referenced in 'path:'
  
       // content will be base64 encoded
       const content = Buffer.from(result.data.content, 'base64').toString();
-      logger.info('\n\n\n' +content);
-      
-  //    logger.info('[GheListener] - IN getServiceDefintion with octokit\n\n\t\t result: ' +JSON.stringify(result, '', '\t'));
-      resolve(content);
+//      logger.info('\n\n\n' +content);
 
+      // Lets perform some validation
+      try {
+
+        let isJson = JSON.parse(content);
+
+        if (typeof isJson.action !== undefined && isJson.action === 'deploy' || isJson.action === 'dry-run') {
+
+          logger.info('this is where we deploy/dry-run: ' + JSON.stringify(isJson));
+          resolve(isJson);
+
+        }
+
+      } catch (err) {
+
+        logger.info('Attempting to parse service def error: ' +err);
+        
+      }
+  
     })
     .catch(err => {
 
@@ -358,6 +352,79 @@ GheListener.prototype.getServiceDefinition = function () {
   });
 
 };
+
+/**
+ * Parse the commit message to identify acctions: add/modify/delete
+ * 
+ * @returns {Object} retrieved from GitHub Enterprise
+ */
+GheListener.prototype.applyServiceDefinition = function (body) {
+
+  return new Promise((resolve, reject) => {
+
+    var as3path = '/mgmt/shared/appsvcs/declare'; 
+    var uri = this.restHelper.makeRestnodedUri(as3path);
+    var restOp = this.createRestOperation(uri, body);
+    
+    this.restRequestSender.sendPost(restOp)
+    .then((resp) => {
+
+      if (DEBUG === true) {
+        logger.info('[GheListener - DEBUG] - applyServiceDefinition() - resp.statusCode: ' +JSON.stringify(resp.statusCode));
+        logger.info('[GheListener - DEBUG] - applyServiceDefinition() - resp.body: ' +JSON.stringify(resp.body, '', '\t'));
+      }
+
+      resolve(resp.statusCode);
+
+    })
+    .catch((err) => {
+
+      logger.info('[GheListener - ERROR] - applyServiceDefinition(): ' +err);
+      reject(err);
+
+
+    });
+
+  });
+
+};
+
+/**
+ * Parse the commit message to identify acctions: add/modify/delete
+ * 
+ * @returns {Object} retrieved from GitHub Enterprise
+ */
+GheListener.prototype.deleteServiceDefinition = function (tenant) {
+
+  return new Promise((resolve, reject) => {
+
+    var as3path = '/mgmt/shared/appsvcs/declare/'+tenant; 
+    var uri = this.restHelper.makeRestnodedUri(as3path);
+    var restOp = this.createRestOperation(uri);
+    
+    this.restRequestSender.sendDelete(restOp)
+    .then((resp) => {
+
+      if (DEBUG === true) {
+        logger.info('[GheListener - DEBUG] - deleteServiceDefinition() - resp.statusCode: ' +JSON.stringify(resp.statusCode));
+        logger.info('[GheListener - DEBUG] - deleteServiceDefinition() - resp.body: ' +JSON.stringify(resp.body, '', '\t'));
+      }
+
+      resolve(resp.statusCode);
+
+    })
+    .catch((err) => {
+
+      logger.info('[GheListener - ERROR] - deleteServiceDefinition(): ' +err);
+      reject(err);
+
+
+    });
+
+  });
+
+};
+
 
 /**
  * Deploy to AS3 (App Services 3.0 - declarative interface)
