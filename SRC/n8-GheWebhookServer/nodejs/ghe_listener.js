@@ -11,14 +11,43 @@
 const logger = require('f5-logger').getInstance();
 const GheUtil = require('./ghe_util.js');  //TODO: eliminate this!!!
 const gheSettingsPath = '/shared/n8/ghe_settings';
+var https = require('https');
+
+const agent = new https.Agent({
+  ca: 'invalid',
+  rejectUnauthorized: false
+});
+
 const octokit = require('@octokit/rest')({
+  debug: true,
+  baseUrl: 'https://172.31.1.200/api/v3',
+  headers: {
+    accept: 'application/vnd.github.v3+json'
+  },
+  agent
+});
+
+/*
+const octokit = require('@octokit/rest')({
+  baseUrl: 'https://172.31.1.200',
+  host: '172.31.1.200',
   timeout: 0, // 0 means no request timeout
   headers: {
     accept: 'application/vnd.github.v3+json',
-    'user-agent': 'octokit/rest.js v1.2.3' // v1.2.3 will be current version
+    Authorization: Bearer 3c02a6288c5d7d6a3193e617b639a3d05bb549b7
+  },
+  rejectUnauthorized: false,
+  authenticate: {
+//    type: 'oauth',
+//    token: '3c02a6288c5d7d6a3193e617b639a3d05bb549b7'
+    type: 'basic',
+    username: 'iacadmin',
+    password: 'iacadmin1'
   }});
 
-  var DEBUG = false;
+  */
+
+var DEBUG = false;
 
 function GheListener() {
   this.config = {};
@@ -60,29 +89,54 @@ GheListener.prototype.onPost = function(restOperation) {
 
   if (DEBUG === true) { logger.info('[GheListener - DEBUG] - In GheListener.prototype.onPost()'); }
 
-  var that = this;
   var postData = restOperation.getBody();
-
-  // Grab the settings from /ghe_settings worker, then.... do this
-  getConfig.then((config) => {
-
-    // Is the POST from Github?
-    if (typeof postData.head_commit !==  'undefined' && postData.head_commit) {
-
-      this.state.head_commit.id = postData.head_commit.id;
   
-      logger.info("[GheListener] Message recevied from Github repo: " +postData.repository.full_name);
-        
-      this.state.repo_name = postData.repository.name;
-      this.state.repo_fullname = postData.repository.full_name;
-    
-      if (config.debug === "true") { logger.info("[GheListener - DEBUG] - Activity from repository: " + jobOpts.repo_name); }
+//  logger.info('Recieved: ' +JSON.stringify(postData, '', '\t'));
+//  logger.info('Recieved: postData.repository: ' +JSON.stringify(postData.repository, '', '\t'));
   
-      GheUtil.parseCommitMessage(postData, function(action, definitionPath) {
-        if (config.debug === "true") { logger.info('[GheListener - DEBUG] - Action: ' +action+ ' definitionPath: ' +definitionPath); }
-        jobOpts.action = action;
-        jobOpts.defPath = definitionPath;
+  // Is the POST from Github?
+  if (typeof postData.head_commit !==  'undefined' && postData.head_commit) {
+
+    // Collect values we need for processing
+    this.state.head_commit_id = postData.head_commit.id;
+    this.state.repo_name = postData.repository.name;
+    this.state.repo_fullname = postData.repository.full_name;
+
+    if (DEBUG === true) { logger.info("[GheListener] Message recevied from Github repo: " +postData.repository.full_name); }
+
+    // Grab the settings from /ghe_settings worker, then.... do this
+
+    this.getConfig()
+    .then(() => {
+
+      // Commence parsing the commit message for work to do.
+      return this.parseCommitMessage(postData);
+
+
+    })
+    .then((actions) => {
+
+      if (DEBUG === true) { logger.info('[GheListener - DEBUG] - Parsed Commit Message - this.state: ' +JSON.stringify(this.state)); }
+      if (DEBUG === true) { logger.info('[GheListener - DEBUG] - Parsed Commit Message - actions: ' +JSON.stringify(actions)); }
+
+      //Get Service Definition
+      return this.getServiceDefinition();
+
+    })
+
+    .then((service_def) => {
+      
+      logger.info('Service Def is: ' +JSON.stringify(service_def));
+
+    })
+    .catch((err) => {
+      logger.info('err in master promise chain: ' +JSON.stringify(err));
+      //Get Service Definition
+//        return this.getServiceDefinition();
+
+    });
   
+/*
         GheUtil.getGheDownloadUrl(config, jobOpts.defPath, function(download_url) {
           if (config.debug === "true") { logger.info('[GheListener - DEBUG] - Retrieved download_url: ' +download_url); }
           jobOpts.url = download_url;
@@ -120,9 +174,9 @@ GheListener.prototype.onPost = function(restOperation) {
             });
           });
         });
-      });
+        */
     }
-  });
+//  });
 
   let restOpBody = { message: '[F5 iControl LX worker: GheListener] Thanks for the message, GitHub!' };  
   restOperation.setBody(restOpBody);
@@ -135,7 +189,7 @@ GheListener.prototype.onPost = function(restOperation) {
  * 
  * @returns {Promise} Promise Object representing operating settings retreived from GheSettings (persisted state) worker
  */
-BigStats.prototype.getConfig = function () {
+GheListener.prototype.getConfig = function () {
   
   return new Promise((resolve, reject) => {
 
@@ -151,8 +205,15 @@ BigStats.prototype.getConfig = function () {
 
       if (typeof resp.body.config !== 'undefined') {
 
+        if (resp.body.config.debug === true) {
+          DEBUG = true;
+        }
+        else {
+          DEBUG = false;
+        }
+
         this.config = resp.body.config;
-        resolve(this.config);
+        resolve();
 
       }
       else {
@@ -176,45 +237,124 @@ BigStats.prototype.getConfig = function () {
 /**
  * Parse the commit message to identify acctions: add/modify/delete
  * 
- * @returns {Promise} Promise Object representing array of actions
+ * @returns {Object} array of addition/modification/deletion actions
  */
-BigStats.prototype.parseCommitMessage = function (commitMessage) {
+GheListener.prototype.parseCommitMessage = function (commitMessage) {
 
-  this.state.actions = {};
+  return new Promise((resolve, reject) => {
 
-  // Iterate through 'commits' array to handle added|modified|removed definitions
-  commitMessage.commits.map((element) => {
+    this.state.actions = {};
 
-    // Handle new service definitions.
-    if (element.added.length > 0) {
+    // Iterate through 'commits' array to handle added|modified|removed definitions
+    commitMessage.commits.map((element, index) => {
 
-      this.state.actions.add = [];
-      let deployFile = element.added.toString();
-      let deployFilePath = "/api/v3/repos/" + element.repository.full_name + "/contents/" + deployFile;
+      // Handle new service definitions.
+      if (element.added.length > 0) {
 
-      let addition = { [deployFile]: deployFilePath };
-      this.state.actions.add.push(addition);
+        // Initialize
+        if (typeof this.state.actions.add === 'undefined') {
+          this.state.actions.added = [];
+        }
 
-    }
+        let deployFile = element.added.toString();
+        let deployFilePath = "/api/v3/repos/" + element.repository.full_name + "/contents/" + deployFile;
 
-    // Handle modified service definitions.
-    if (gheMessage.commits[i].modified.length > 0) {
-        let action = 'modify';
-        let deployFile = gheMessage.commits[i].modified.toString();
-        let deployFilePath = "/api/v3/repos/" + gheMessage.repository.full_name + "/contents/" + deployFile;
-        cb(action, deployFilePath);
-    }
+        let addition = { [deployFile]: deployFilePath };
+        this.state.actions.added.push(addition);
 
-    // Handle deleted service definitions.
-    if (gheMessage.commits[i].removed.length > 0) {
-        let action = 'delete';
-        let deletedFile = gheMessage.commits[i].removed.toString();
+      }
+
+      // Handle modified service definitions.
+      if (element.modified.length > 0) {
+
+        // Initialize
+        if (typeof this.state.actions.modified === 'undefined') {
+          this.state.actions.modified = [];
+        }
+
+        let deployFile = element.modified.toString();
+        let deployFilePath = "/api/v3/repos/" + commitMessage.repository.full_name + "/contents/" + deployFile;
+
+        let modification = { [deployFile]: deployFilePath };
+        this.state.actions.modified.push(modification);
+
+      }
+
+      // Handle deleted service definitions.
+      if (element.removed.length > 0) {
+
+        let deletedFile = element.removed.toString();
         // The file existed in the previous commmit, before the deletion...
-        let previousCommit = gheMessage.before;
-        let deletedFilePath = "/api/v3/repos/" + gheMessage.repository.full_name + "/contents/" + deletedFile + "?ref=" + previousCommit;    
-        cb(action, deletedFilePath);
-    }
+        let previousCommit = commitMessage.before;
+        let deletedFilePath = "/api/v3/repos/" + commitMessage.repository.full_name + "/contents/" + deletedFile + "?ref=" + previousCommit;    
 
+        let deletion = { [deletedFile]: deletedFilePath };
+        this.state.actions.deleted.push(deletion);
+      }
+
+      // Return when all commits processed
+      if ((commitMessage.commits.length - 1) === index) {
+        resolve(this.state.actions);
+      }
+
+    });
+
+  });
+
+};
+
+/**
+ * Parse the commit message to identify acctions: add/modify/delete
+ * 
+ * @returns {Object} retrieved from GitHub Enterprise
+ */
+GheListener.prototype.getServiceDefinition = function () {
+
+/**
+ * 
+  octokit.repos.getContent({
+    owner: 'octokit',
+    repo: 'rest.js',
+    path: 'examples/getContent.js'
+  })
+
+  .then(result => {
+    // content will be base64 encoded
+    const content = Buffer.from(result.data.content, 'base64').toString()
+    console.log(content)
+  })
+ */
+
+  return new Promise((resolve, reject) => {
+
+    octokit.authenticate({
+      type: 'oauth',
+      token: '3c02a6288c5d7d6a3193e617b639a3d05bb549b7'
+    });
+
+
+    octokit.repos.getContent({owner: 'iacorg', repo: 'ip-172-31-1-20.us-west-1.compute.internal', path: 'README.md'})
+
+//    octokit.repos.getContent(options)
+//    octokit.repos.getAll()
+    .then(result => {
+
+//      logger.info('\n\n' +JSON.stringify(result, '', '\t'));  // All of the data about the object referenced in 'path:'
+ 
+      // content will be base64 encoded
+      const content = Buffer.from(result.data.content, 'base64').toString();
+      logger.info('\n\n\n' +content);
+      
+  //    logger.info('[GheListener] - IN getServiceDefintion with octokit\n\n\t\t result: ' +JSON.stringify(result, '', '\t'));
+      resolve(content);
+
+    })
+    .catch(err => {
+
+      logger.info('[GheListener - ERROR] - getServiceDefinition(): ' +JSON.stringify(err));
+      reject(err);
+
+    });
   });
 
 };
@@ -232,7 +372,6 @@ GheListener.prototype.pushToBigip = function (config, jobOpts, cb) {
 
     if (config.debug === "true") { logger.info('[GheListener - DEBUG] - We are deleting'); }
 
-    method = 'DELETE';
     as3uri = '/mgmt/shared/appsvcs/declare/'+jobOpts.tenant;
     uri = that.generateURI(host, as3uri);
     restOp = that.createRestOperation(uri, JSON.stringify(jobOpts.service_def)); //TODO you don't need a service def to delete....
