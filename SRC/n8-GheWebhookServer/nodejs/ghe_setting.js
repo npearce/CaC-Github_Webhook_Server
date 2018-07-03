@@ -56,16 +56,6 @@ GheSettings.prototype.onGet = function(restOperation) {
 };
 
 /**
- * handle onPut HTTP request
- */
-GheSettings.prototype.onPut = function(restOperation) {
-
-    // Use POST
-    this.onPost(restOperation);
-
-};
-
-/**
  * handle onPost HTTP request
  */
 GheSettings.prototype.onPost = function(restOperation) {
