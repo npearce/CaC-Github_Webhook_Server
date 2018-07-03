@@ -227,7 +227,6 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 
         element.removed.map((serviceDel) => {
           logger.info('theDel is: ' +serviceDel);
-//          this.getDeletedServiceDefinition(serviceDel, commitMessage.head_commit.tree_id)
           this.getDeletedServiceDefinition(serviceDel, commitMessage.before) 
           .then((service_definition) => {
 
@@ -379,42 +378,6 @@ GheListener.prototype.getDeletedServiceDefinition = function (object_name, befor
 
     });
 
-
-    /** 
-    octokit.gitdata.getTree({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, tree_sha: before, recursive: 1})
-//    octokit.gitdata.getBlob({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, file_sha: before})
-//    octokit.repos.getContent({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, path: object_name, ref: before})
-
-    .then(result => {
- 
-      logger.info(JSON.stringify(result, '', '\t'));
-      // content will be base64 encoded
-      const content = Buffer.from(result.data.content, 'base64').toString();
-
-      var isJson;
-      // Lets perform some validation
-      try {
-
-        isJson = JSON.parse(content);
-
-        logger.info('[GheListener] - getServiceDeletedDefinition(): This is where we deploy/dry-run: ' + JSON.stringify(isJson));    
-
-      } catch (err) {
-
-        logger.info('[GheListener - ERROR] - getServiceDeletedDefinition(): Attempting to parse service def error: ' +err);
-        
-      }
-
-      resolve(isJson);
-
-    })
-    .catch(err => {
-
-      logger.info('[GheListener - ERROR] - getServiceDeletedDefinition(): ' +JSON.stringify(err));
-      reject(err);
-
-    });
-    */
   });
 
 };
