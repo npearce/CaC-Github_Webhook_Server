@@ -191,7 +191,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
           })
           .then((resp) => {
             logger.info(JSON.stringify(resp));
-            this.createGithubIssue(resp);
+            this.createGithubIssue(serviceAdd, "Added", resp);
           })
           .catch((err) => {
             logger.info('parseCommitMessage() -> return this.applyServiceDefinition(body): ' +err);
@@ -212,7 +212,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
           })
           .then((resp) => {
             logger.info(JSON.stringify(resp));
-            this.createGithubIssue(resp);
+            this.createGithubIssue(serviceMod, "Modified", resp);
           })
           .catch((err) => {
             logger.info('parseCommitMessage() -> return this.applyServiceDefinition(body): ' +err);
@@ -241,7 +241,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
           })          
           .then((resp) => {
             logger.info(JSON.stringify(resp));
-            this.createGithubIssue(resp);
+            this.createGithubIssue(serviceDel, "Deleted", resp);
           })
           .catch((err) => {
             logger.info('parseCommitMessage() -> return this.applyServiceDefinition(body): ' +err);
@@ -424,7 +424,7 @@ GheListener.prototype.applyServiceDefinition = function (body) {
         logger.info('[GheListener - DEBUG] - applyServiceDefinition() - resp.body: ' +JSON.stringify(resp.body, '', '\t'));
       }
 
-      resolve(resp.statusCode);
+      resolve(resp.body.results);
 
     })
     .catch((err) => {
@@ -480,7 +480,7 @@ GheListener.prototype.deleteServiceDefinition = function (tenant) {
         logger.info('[GheListener - DEBUG] - deleteServiceDefinition() - resp.body: ' +JSON.stringify(resp.body, '', '\t'));
       }
 
-      resolve(resp.statusCode);
+      resolve(resp.body.results);
 
     })
     .catch((err) => {
@@ -499,7 +499,7 @@ GheListener.prototype.deleteServiceDefinition = function (tenant) {
  * 
  * @returns {Object} retrieved from GitHub Enterprise
  */
-GheListener.prototype.createGithubIssue = function (message) {
+GheListener.prototype.createGithubIssue = function (file_name, action, results) {
 
   return new Promise((resolve, reject) => {
 
@@ -508,7 +508,8 @@ GheListener.prototype.createGithubIssue = function (message) {
       token: this.config.ghe_access_token
     });
 
-    octokit.issues.create({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, title: 'test', body: 'body test'})
+    let title = action+' \"' +file_name+ '\"';
+    octokit.issues.create({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, title: title, labels: [action], body: JSON.stringify(results, '', '\t')})
     .then((result) => {
 
       logger.info('[GheListener] - createGithubIssue() result.status: ' +result.status);
