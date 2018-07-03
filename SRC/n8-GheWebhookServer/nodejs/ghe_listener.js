@@ -17,6 +17,9 @@ const octokit = require('@octokit/rest')({
   }
 });
 
+// Ignore self-signed cert (dev environment)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 var DEBUG = false;
 
 function GheListener() {
@@ -59,18 +62,21 @@ GheListener.prototype.onPost = function(restOperation) {
 
   if (DEBUG === true) { logger.info('[GheListener - DEBUG] - In GheListener.prototype.onPost()'); }
 
+  // Nuke for each webhook workflow.
+  this.state = {};
   var postData = restOperation.getBody();
-    
+  
   // Is the POST from Github?
   if (typeof postData.head_commit !==  'undefined' && postData.head_commit) {
 
-    // Collect values we need for processing
-    let ref_array = postData.ref.split('/'); //TODO: Grab the branch from here.
-    this.state.branch = ref_array[2];
+    // Collect values we need for processing // 
+    let ref_array = postData.ref.split('/');
+    this.state.branch = ref_array[2]; // Grab the 'branch' from the end of 'ref'.
     this.state.head_commit_id = postData.head_commit.id;
     this.state.owner = postData.repository.owner.name;
     this.state.repo_name = postData.repository.name;
     this.state.repo_fullname = postData.repository.full_name;
+    this.state.before = postData.before;
 
     if (DEBUG === true) { logger.info("[GheListener] Message recevied from Github repo: " +postData.repository.full_name); }
 
@@ -80,21 +86,6 @@ GheListener.prototype.onPost = function(restOperation) {
 
       // Commence parsing the commit message for work to do.
       return this.parseCommitMessage(postData);
-
-    })
-    .then((actions) => {
-
-      if (DEBUG === true) { logger.info('[GheListener - DEBUG] - Parsed Commit Message - this.state: ' +JSON.stringify(this.state)); }
-      if (DEBUG === true) { logger.info('[GheListener - DEBUG] - Parsed Commit Message - actions: ' +JSON.stringify(actions)); }
-
-      //Get Service Definition
-      return this.getServiceDefinition();
-
-    })
-    .then((service_def) => {
-
-      logger.info('Service Def is: ' +JSON.stringify(service_def));
-      return this.applyServiceDefinition(service_def);
 
     })
     .then((resp) => {
@@ -111,7 +102,7 @@ GheListener.prototype.onPost = function(restOperation) {
     })
     .catch((err) => {
 
-      logger.info('err in master promise chain: ' +JSON.stringify(err));
+      logger.info('[GheListener - DEBUG] - err in master promise chain: ' +JSON.stringify(err));
 
     });
   
@@ -183,59 +174,96 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 
   return new Promise((resolve, reject) => {
 
-    this.state.actions = {};
+    this.state.actions = [];
+    logger.info('\n\nIN parseCommitMessage() commitMessage.commits:' +JSON.stringify(commitMessage.commits));
 
     // Iterate through 'commits' array to handle added|modified|removed definitions
     commitMessage.commits.map((element, index) => {
 
-      // Handle new service definitions.
+      // Handle new/modified service definitions.
       if (element.added.length > 0) {
 
-        // Initialize
-        if (typeof this.state.actions.add === 'undefined') {
-          this.state.actions.added = [];
-        }
+        element.added.map((serviceAdd) => {
+          logger.info('theAdd is: ' +serviceAdd);
+          this.getServiceDefinition(serviceAdd)
+          .then((service_definition) => {
+            return this.applyServiceDefinition(service_definition);
+          })
+          .then((resp) => {
+            logger.info(JSON.stringify(resp));
+            this.createGithubIssue(resp);
+          })
+          .catch((err) => {
+            logger.info('parseCommitMessage() -> return this.applyServiceDefinition(body): ' +err);
+          });
 
-        let deployFile = element.added.toString();
-        let deployFilePath = "/api/v3/repos/" + element.repository.full_name + "/contents/" + deployFile;
-
-        let addition = { [deployFile]: deployFilePath };
-        this.state.actions.added.push(addition);
+        });
 
       }
 
-      // Handle modified service definitions.
+      // Handle new/modified service definitions.
       if (element.modified.length > 0) {
 
-        // Initialize
-        if (typeof this.state.actions.modified === 'undefined') {
-          this.state.actions.modified = [];
-        }
+        element.modified.map((serviceMod) => {
+          logger.info('theMod is: ' +serviceMod);
+          this.getServiceDefinition(serviceMod)
+          .then((service_definition) => {
+            return this.applyServiceDefinition(service_definition);
+          })
+          .then((resp) => {
+            logger.info(JSON.stringify(resp));
+            this.createGithubIssue(resp);
+          })
+          .catch((err) => {
+            logger.info('parseCommitMessage() -> return this.applyServiceDefinition(body): ' +err);
+          });
 
-        let deployFile = element.modified.toString();
-        let deployFilePath = "/api/v3/repos/" + commitMessage.repository.full_name + "/contents/" + deployFile;
-
-        let modification = { [deployFile]: deployFilePath };
-        this.state.actions.modified.push(modification);
+        });
 
       }
 
-      // Handle deleted service definitions.
+      // Handle new/modified service definitions.
       if (element.removed.length > 0) {
 
-        let deletedFile = element.removed.toString();
-        // The file existed in the previous commmit, before the deletion...
-        let previousCommit = commitMessage.before;
-        let deletedFilePath = "/api/v3/repos/" + commitMessage.repository.full_name + "/contents/" + deletedFile + "?ref=" + previousCommit;    
+        element.removed.map((serviceDel) => {
+          logger.info('theDel is: ' +serviceDel);
+//          this.getDeletedServiceDefinition(serviceDel, commitMessage.head_commit.tree_id)
+          this.getDeletedServiceDefinition(serviceDel, commitMessage.before) 
+          .then((service_definition) => {
 
-        let deletion = { [deletedFile]: deletedFilePath };
-        this.state.actions.deleted.push(deletion);
+            logger.info('this.getDeletedServiceDefinition() returns service_definition: ' +service_definition);
+            return this.identifyTenant(service_definition.declaration);
+
+          })
+          .then((tenant) => {
+
+            return this.deleteServiceDefinition(tenant);
+
+          })          
+          .then((resp) => {
+            logger.info(JSON.stringify(resp));
+            this.createGithubIssue(resp);
+          })
+          .catch((err) => {
+            logger.info('parseCommitMessage() -> return this.applyServiceDefinition(body): ' +err);
+          });
+
+        });
 
       }
+
 
       // Return when all commits processed
       if ((commitMessage.commits.length - 1) === index) {
+
         resolve(this.state.actions);
+
+      }
+      else {
+
+        reject('[GheListener - ERROR] - parseCommitMessage() - nothing to parse');
+
+        
       }
 
     });
@@ -249,7 +277,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
  * 
  * @returns {Object} retrieved from GitHub Enterprise
  */
-GheListener.prototype.getServiceDefinition = function () {
+GheListener.prototype.getServiceDefinition = function (object_name) {
 
   return new Promise((resolve, reject) => {
 
@@ -258,17 +286,12 @@ GheListener.prototype.getServiceDefinition = function () {
       token: this.config.ghe_access_token
     });
 
-    logger.info('[GheListener - ERROR] - getServiceDefinition(): with this.state: ' + JSON.stringify(this.state, '', '\t'));
+    octokit.repos.getContent({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, path: object_name})
 
-//    this.config.baseUrl = 'https://172.31.1.200/api/v3';
-    octokit.repos.getContent({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, path: 'SERVICE/sd1.json'})
-//    octokit.repos.getContent(options)
-//    octokit.repos.getAll()
     .then(result => {
  
       // content will be base64 encoded
       const content = Buffer.from(result.data.content, 'base64').toString();
-//      logger.info('\n\n\n' +content);
 
       var isJson;
       // Lets perform some validation
@@ -288,16 +311,7 @@ GheListener.prototype.getServiceDefinition = function () {
         
       }
 
-      logger.info('\n\nAfter try: ' +isJson.declaration.class+ '\n\n');
-      this.identifyTenant(isJson.declaration)
-      .then((tenant) => {
-        logger.info('\n\ntenant: ' +tenant+ '\n\n');
-        this.state.tenant = tenant;
-  
-      });
-
       resolve(isJson);
-
 
     })
     .catch(err => {
@@ -305,6 +319,122 @@ GheListener.prototype.getServiceDefinition = function () {
       logger.info('[GheListener - ERROR] - getServiceDefinition(): ' +JSON.stringify(err));
       reject(err);
 
+    });
+  });
+
+};
+
+/**
+ * Parse the commit message to identify acctions: add/modify/delete
+ * 
+ * @returns {Object} retrieved from GitHub Enterprise
+ */
+GheListener.prototype.getDeletedServiceDefinition = function (object_name, before) {
+
+  return new Promise((resolve, reject) => {
+
+    octokit.authenticate({
+      type: 'oauth',
+      token: this.config.ghe_access_token
+    });
+
+    logger.info('object_name: ' +object_name+ ' before: ' +before);
+    octokit.gitdata.getCommit({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, commit_sha: before})
+    .then((beforeCommit) => {
+      logger.info('beforeCommit: ' +JSON.stringify(beforeCommit, '', '\t'));
+      return octokit.gitdata.getTree({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, tree_sha: beforeCommit.data.tree.sha, recursive: 1});
+    })
+    .then((beforeTree) => {
+
+      return this.identifyDeletedFileInTree(beforeTree, object_name);
+
+    })
+    .then((theSha) => {
+      logger.info('theSha:' +theSha);
+
+      return octokit.gitdata.getBlob({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, file_sha: theSha});
+
+    })
+    .then((result) => {
+
+      logger.info('result: ' +JSON.stringify(result));
+
+      const content = Buffer.from(result.data.content, 'base64').toString();
+
+      var isJson;
+      // Lets perform some validation
+      try {
+
+        isJson = JSON.parse(content);
+
+        logger.info('[GheListener] - getServiceDeletedDefinition(): This is where we deploy/dry-run: ' + JSON.stringify(isJson));    
+
+      } catch (err) {
+
+        logger.info('[GheListener - ERROR] - getServiceDeletedDefinition(): Attempting to parse service def error: ' +err);
+        
+      }
+
+      resolve(isJson);
+
+    });
+
+
+    /** 
+    octokit.gitdata.getTree({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, tree_sha: before, recursive: 1})
+//    octokit.gitdata.getBlob({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, file_sha: before})
+//    octokit.repos.getContent({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, path: object_name, ref: before})
+
+    .then(result => {
+ 
+      logger.info(JSON.stringify(result, '', '\t'));
+      // content will be base64 encoded
+      const content = Buffer.from(result.data.content, 'base64').toString();
+
+      var isJson;
+      // Lets perform some validation
+      try {
+
+        isJson = JSON.parse(content);
+
+        logger.info('[GheListener] - getServiceDeletedDefinition(): This is where we deploy/dry-run: ' + JSON.stringify(isJson));    
+
+      } catch (err) {
+
+        logger.info('[GheListener - ERROR] - getServiceDeletedDefinition(): Attempting to parse service def error: ' +err);
+        
+      }
+
+      resolve(isJson);
+
+    })
+    .catch(err => {
+
+      logger.info('[GheListener - ERROR] - getServiceDeletedDefinition(): ' +JSON.stringify(err));
+      reject(err);
+
+    });
+    */
+  });
+
+};
+
+GheListener.prototype.identifyDeletedFileInTree = function (beforeTree, object_name) {
+
+  return new Promise((resolve, reject) => {
+
+    logger.info('beforeTree: ' +JSON.stringify(beforeTree, '', '\t'));
+    beforeTree.data.tree.map((element) => {
+      if (element.path === object_name) {
+        logger.info('element: ' +JSON.stringify(element));
+
+        var theSha = element.sha;
+        logger.info('theSha: ' +theSha);
+        logger.info('the sha is a: ' +typeof theSha);
+
+        resolve(theSha);
+
+      }
     });
   });
 
@@ -375,7 +505,7 @@ GheListener.prototype.deleteServiceDefinition = function (tenant) {
 
   return new Promise((resolve, reject) => {
 
-    var as3path = '/mgmt/shared/appsvcs/declare/'+this.state.tenant; 
+    var as3path = '/mgmt/shared/appsvcs/declare/'+tenant; 
     var uri = this.restHelper.makeRestnodedUri(as3path);
     var restOp = this.createRestOperation(uri);
     
@@ -394,7 +524,6 @@ GheListener.prototype.deleteServiceDefinition = function (tenant) {
 
       logger.info('[GheListener - ERROR] - deleteServiceDefinition(): ' +err);
       reject(err);
-
 
     });
 
