@@ -339,6 +339,8 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
       // content will be base64 encoded
       const content = Buffer.from(result.data.content, 'base64').toString();
 
+      if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getServiceDefinition(): Got something back from GitHub repo: ' +content); }
+      
       var service_def;
 
       // Perform some validation: is it JSON, does it have BIG-IP service defition 'actions'
@@ -348,7 +350,7 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
 
         if (typeof service_def.action !== undefined && service_def.action === 'deploy' || service_def.action === 'dry-run') {
 
-          if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getServiceDefinition(): We have a BIG-IP Service Defintion: ' + JSON.stringify(service_def)); }
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getServiceDefinition(): We have a BIG-IP Service Defintion: ' +JSON.stringify(service_def)); }
 
           resolve(service_def);
 
