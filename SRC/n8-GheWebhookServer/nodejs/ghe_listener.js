@@ -184,6 +184,9 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
         // Iterate through the 'added' array of the Commit Message
         element.added.map((serviceAdd) => {
 
+          let action = { "Added": serviceAdd };
+          this.state.actions.push(action);
+
           // For each addition, fetch the service definition from the repo, and pass to this.applyServiceDefinition()
           if (DEBUG === true) { logger.info('[GheListener - DEBUG] Found an addition to the repo - serviceAdd: ' +serviceAdd); }
           this.getServiceDefinition(serviceAdd)
@@ -196,8 +199,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
           })
           .then((resp) => {
 
-            logger.info(JSON.stringify(resp));
-            this.state.actions.push("Added: " +serviceAdd);
+            if (DEBUG === true) { logger.info('[GheListener - DEBUG] this.applyServiceDefinition() - resp: ' +JSON.stringify(resp)); }
 
             // Post the results back into the source repo as a GitHub Issue
             this.createGithubIssue(serviceAdd, "Added", resp);
@@ -219,6 +221,9 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
         // Iterate through the 'modified' array of the Commit Message
         element.modified.map((serviceMod) => {
 
+          let action = { "Modified": serviceMod };
+          this.state.actions.push(action);
+
           // For each modification, fetch the service definition from the repo, and pass to this.applyServiceDefinition()
           if (DEBUG === true) { logger.info('[GheListener - DEBUG] Found a modification to the repo - serviceMod: ' +serviceMod); }
           this.getServiceDefinition(serviceMod)
@@ -231,9 +236,9 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
           })
           .then((resp) => {
 
+            if (DEBUG === true) { logger.info('[GheListener - DEBUG] this.applyServiceDefinition() - resp: ' +JSON.stringify(resp)); }
+
             // Post the results back into the source repo as a GitHub Issue
-            logger.info(JSON.stringify(resp));
-            this.state.actions.push("Modified: " +serviceMod);
             this.createGithubIssue(serviceMod, "Modified", resp);
 
           })
@@ -252,6 +257,9 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 
         // Iterate through the 'removed' array of the Commit Message
         element.removed.map((serviceDel) => {
+
+          let action = { "Deleted": serviceDel };
+          this.state.actions.push(action);
 
           // For each deletion, fetch the service definition from the repo, so we can identify the Tenant          
           if (DEBUG === true) { logger.info('[GheListener - DEBUG] Found a deletion to the repo - serviceDel: ' +serviceDel); }
@@ -273,9 +281,9 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
           })          
           .then((resp) => {
 
+            if (DEBUG === true) { logger.info('[GheListener - DEBUG] this.deleteServiceDefinition() - resp: ' +JSON.stringify(resp)); }
+
             // Post the results back into the source repo as a GitHub Issue
-            logger.info(JSON.stringify(resp));
-            this.state.actions.push("Deleted: " +serviceDel);
             this.createGithubIssue(serviceDel, "Deleted", resp);
 
           })
