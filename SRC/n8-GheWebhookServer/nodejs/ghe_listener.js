@@ -69,34 +69,30 @@ GheListener.prototype.onPost = function(restOperation) {
   // Is the POST from Github?
   if (typeof postData.head_commit !==  'undefined' && postData.head_commit) {
 
-    // Collect values we need for processing // 
+    // Collect values we need for processing
     let ref_array = postData.ref.split('/');
-    this.state.branch = ref_array[2]; // Grab the 'branch' from the end of 'ref'.
-    this.state.head_commit_id = postData.head_commit.id;
-    this.state.owner = postData.repository.owner.name;
-    this.state.repo_name = postData.repository.name;
-    this.state.repo_fullname = postData.repository.full_name;
-    this.state.before = postData.before;
+    this.state.branch = ref_array[2]; // Grab the 'branch' from the end of 'ref' string
+    this.state.head_commit_id = postData.head_commit.id; // The sha for this commit, for which we received the commit webhook message
+    this.state.owner = postData.repository.owner.name; //repository owner
+    this.state.repo_name = postData.repository.name; // repository name
+    this.state.repo_fullname = postData.repository.full_name; // owner+responsitory name
+    this.state.before = postData.before; // The sha of the 'previous' commit. Required for processing deletions.
 
-    if (DEBUG === true) { logger.info("[GheListener] Message recevied from Github repo: " +postData.repository.full_name); }
+    if (DEBUG === true) { logger.info("[GheListener - DEBUG] Message recevied from Github repo: " +postData.repository.full_name); }
 
-    // Grab the settings from /ghe_settings worker, then.... do this
+    // Grab the settings from the persisted state /ghe_settings worker
     this.getConfig()
-    .then(() => {
+    .then((config) => {
+
+      if (DEBUG === true) { logger.info("[GheListener - DEBUG] this.getConfig() => returns: " +JSON.stringify(config, '', '\t')); }
 
       // Commence parsing the commit message for work to do.
       return this.parseCommitMessage(postData);
 
     })
-    .then((resp) => {
+    .then((actions) => {
 
-      if (DEBUG === true) { logger.info('[GheListener] - applyServiceDefinition() resp: ' +JSON.stringify(resp, '', '\t')); }
-      return this.createGithubIssue(resp);
-
-    })
-    .then((resp) => {
-
-      if (DEBUG === true) { logger.info('[GheListener] - createGithubIssue() resp: ' +resp); }
+      if (DEBUG === true) { logger.info('[GheListener] - the following additions/modifications/deletions were performed: ' +JSON.stringify(actions, '', '\t')); }
       return;
 
     })
@@ -144,7 +140,7 @@ GheListener.prototype.getConfig = function () {
 
         this.config = resp.body.config;
         this.config.baseUrl = 'https://'+resp.body.config.ghe_ip_address+'/api/v3';
-        resolve();
+        resolve(this.config);
 
       }
       else {
@@ -168,6 +164,8 @@ GheListener.prototype.getConfig = function () {
 /**
  * Parse the commit message to identify acctions: add/modify/delete
  * 
+ * @param {Object} commitMessage receved from GitHub Webhook
+ * 
  * @returns {Object} array of addition/modification/deletion actions
  */
 GheListener.prototype.parseCommitMessage = function (commitMessage) {
@@ -175,7 +173,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
   return new Promise((resolve, reject) => {
 
     this.state.actions = [];
-    logger.info('\n\nIN parseCommitMessage() commitMessage.commits:' +JSON.stringify(commitMessage.commits));
+    if (DEBUG === true) { logger.info('[GheListener - DEBUG] In parseCommitMessage() with commitMessage.commits:' +JSON.stringify(commitMessage.commits)); }
 
     // Iterate through 'commits' array to handle added|modified|removed definitions
     commitMessage.commits.map((element, index) => {
@@ -183,18 +181,32 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
       // Handle new/modified service definitions.
       if (element.added.length > 0) {
 
+        // Iterate through the 'added' array of the Commit Message
         element.added.map((serviceAdd) => {
-          logger.info('theAdd is: ' +serviceAdd);
+
+          // For each addition, fetch the service definition from the repo, and pass to this.applyServiceDefinition()
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] Found an addition to the repo - serviceAdd: ' +serviceAdd); }
           this.getServiceDefinition(serviceAdd)
+
           .then((service_definition) => {
+
+            // Deploy the new service to the BIG-IP
             return this.applyServiceDefinition(service_definition);
+
           })
           .then((resp) => {
+
             logger.info(JSON.stringify(resp));
+            this.state.actions.push("Added: " +serviceAdd);
+
+            // Post the results back into the source repo as a GitHub Issue
             this.createGithubIssue(serviceAdd, "Added", resp);
+
           })
           .catch((err) => {
-            logger.info('parseCommitMessage() -> return this.applyServiceDefinition(body): ' +err);
+
+            logger.info('[GheListener - ERROR] parseCommitMessage() -> return this.applyServiceDefinition(body): ' +err);
+
           });
 
         });
@@ -203,19 +215,32 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 
       // Handle new/modified service definitions.
       if (element.modified.length > 0) {
-
+        
+        // Iterate through the 'modified' array of the Commit Message
         element.modified.map((serviceMod) => {
-          logger.info('theMod is: ' +serviceMod);
+
+          // For each modification, fetch the service definition from the repo, and pass to this.applyServiceDefinition()
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] Found a modification to the repo - serviceMod: ' +serviceMod); }
           this.getServiceDefinition(serviceMod)
+
           .then((service_definition) => {
+
+            // Deploy the modified service to the BIG-IP (its idempotent, so treated same as new service)
             return this.applyServiceDefinition(service_definition);
+
           })
           .then((resp) => {
+
+            // Post the results back into the source repo as a GitHub Issue
             logger.info(JSON.stringify(resp));
+            this.state.actions.push("Modified: " +serviceMod);
             this.createGithubIssue(serviceMod, "Modified", resp);
+
           })
           .catch((err) => {
-            logger.info('parseCommitMessage() -> return this.applyServiceDefinition(body): ' +err);
+
+            logger.info('[GheListener - ERROR] parseCommitMessage() -> return this.applyServiceDefinition(body): ' +err);
+
           });
 
         });
@@ -225,26 +250,39 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
       // Handle new/modified service definitions.
       if (element.removed.length > 0) {
 
+        // Iterate through the 'removed' array of the Commit Message
         element.removed.map((serviceDel) => {
+
+          // For each deletion, fetch the service definition from the repo, so we can identify the Tenant          
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] Found a deletion to the repo - serviceDel: ' +serviceDel); }
           logger.info('theDel is: ' +serviceDel);
           this.getDeletedServiceDefinition(serviceDel, commitMessage.before) 
+
           .then((service_definition) => {
 
-            logger.info('this.getDeletedServiceDefinition() returns service_definition: ' +service_definition);
+            // Use the service definition to identify the tenant, required for the deletion URI
             return this.identifyTenant(service_definition.declaration);
 
           })
           .then((tenant) => {
 
+            // Pass the Tenant name to deleteServiceDefinition() for deletion
+            if (DEBUG === true) { logger.info('[GheListener - DEBUG] this.identifyTenant() found: ' +tenant); }
             return this.deleteServiceDefinition(tenant);
 
           })          
           .then((resp) => {
+
+            // Post the results back into the source repo as a GitHub Issue
             logger.info(JSON.stringify(resp));
+            this.state.actions.push("Deleted: " +serviceDel);
             this.createGithubIssue(serviceDel, "Deleted", resp);
+
           })
           .catch((err) => {
-            logger.info('parseCommitMessage() -> return this.applyServiceDefinition(body): ' +err);
+
+            logger.info('[GheListener - ERROR] parseCommitMessage() -> return this.deleteServiceDefinition(body): ' +err);
+
           });
 
         });
@@ -260,9 +298,8 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
       }
       else {
 
-        reject('[GheListener - ERROR] - parseCommitMessage() - nothing to parse');
+        reject('[GheListener - ERROR] parseCommitMessage() failed');
 
-        
       }
 
     });
@@ -272,9 +309,11 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 };
 
 /**
- * Parse the commit message to identify acctions: add/modify/delete
+ * Retrieve the added/modified/deleted object from GitHub and verify it is a service defintion
  * 
- * @returns {Object} retrieved from GitHub Enterprise
+ * @param {Object} object_name of the add/mod/del to the source repository
+ * 
+ * @returns {Object} the service defition retrieved from GitHub
  */
 GheListener.prototype.getServiceDefinition = function (object_name) {
 
@@ -292,15 +331,18 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
       // content will be base64 encoded
       const content = Buffer.from(result.data.content, 'base64').toString();
 
-      var isJson;
-      // Lets perform some validation
+      var service_def;
+
+      // Perform some validation: is it JSON, does it have BIG-IP service defition 'actions'
       try {
 
-        isJson = JSON.parse(content);
+        service_def = JSON.parse(content);
 
-        if (typeof isJson.action !== undefined && isJson.action === 'deploy' || isJson.action === 'dry-run') {
+        if (typeof service_def.action !== undefined && service_def.action === 'deploy' || service_def.action === 'dry-run') {
 
-          logger.info('[GheListener] - getServiceDefinition(): This is where we deploy/dry-run: ' + JSON.stringify(isJson));    
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getServiceDefinition(): We have a BIG-IP Service Defintion: ' + JSON.stringify(service_def)); }
+
+          resolve(service_def);
 
         }
 
@@ -310,7 +352,6 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
         
       }
 
-      resolve(isJson);
 
     })
     .catch(err => {
@@ -324,9 +365,12 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
 };
 
 /**
- * Parse the commit message to identify acctions: add/modify/delete
+ * Retreive the service definition from the previous commit, before it was deleted
  * 
- * @returns {Object} retrieved from GitHub Enterprise
+ * @param {Object} object_name retrieved from GitHub Webhook commit message
+ * @param {String} before is the previous commit, where we get the service defition that has since been deleted
+ * 
+ * @returns {Object} the deleted service definition (from beyond the grave).
  */
 GheListener.prototype.getDeletedServiceDefinition = function (object_name, before) {
 
@@ -337,44 +381,54 @@ GheListener.prototype.getDeletedServiceDefinition = function (object_name, befor
       token: this.config.ghe_access_token
     });
 
-    logger.info('object_name: ' +object_name+ ' before: ' +before);
+    if (DEBUG === true) { logger.info('[GheListener - DEBUG] getDeletedServiceDefinition() - the object name: ' +object_name+ ' and the previous commit sha: ' +before); }
+
     octokit.gitdata.getCommit({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, commit_sha: before})
-    .then((beforeCommit) => {
-      logger.info('beforeCommit: ' +JSON.stringify(beforeCommit, '', '\t'));
-      return octokit.gitdata.getTree({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, tree_sha: beforeCommit.data.tree.sha, recursive: 1});
+    .then((previousCommit) => {
+
+      // From the previous commit, retireve the repo tree 
+      if (DEBUG === true) { logger.info('[GheListener - DEBUG] getDeletedServiceDefinition() - the pre-deletion commit: ' +JSON.stringify(previousCommit, '', '\t')); }
+      return octokit.gitdata.getTree({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, tree_sha: previousCommit.data.tree.sha, recursive: 1});
+
     })
     .then((beforeTree) => {
 
+      // From the repo tree, of the previous commit, identify the desired service defition object and return the objects sha
       return this.identifyDeletedFileInTree(beforeTree, object_name);
 
     })
     .then((theSha) => {
       logger.info('theSha:' +theSha);
 
+      // Grab the service definition (from beyond the grave) 
       return octokit.gitdata.getBlob({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, file_sha: theSha});
 
     })
     .then((result) => {
 
-      logger.info('result: ' +JSON.stringify(result));
+      if (DEBUG === true) { logger.info('[GheListener - DEBUG] getDeletedServiceDefinition() - the deleted service definition: ' +JSON.stringify(result, '', '\t')); }
 
+      // The content will be bas64 encoded
       const content = Buffer.from(result.data.content, 'base64').toString();
-
-      var isJson;
+      var service_def;
       // Lets perform some validation
       try {
 
-        isJson = JSON.parse(content);
+        service_def = JSON.parse(content);
 
-        logger.info('[GheListener] - getServiceDeletedDefinition(): This is where we deploy/dry-run: ' + JSON.stringify(isJson));    
+        // Check it resembles a BIG-IP Service Definition
+        if (typeof service_def !== 'undefined' && service_def.declaration.class === 'ADC') {
+
+          resolve(service_def);
+
+        }
 
       } catch (err) {
 
         logger.info('[GheListener - ERROR] - getServiceDeletedDefinition(): Attempting to parse service def error: ' +err);
+        reject('[GheListener - ERROR] - getServiceDeletedDefinition(): Unable to parse');
         
       }
-
-      resolve(isJson);
 
     });
 
@@ -382,20 +436,34 @@ GheListener.prototype.getDeletedServiceDefinition = function (object_name, befor
 
 };
 
-GheListener.prototype.identifyDeletedFileInTree = function (beforeTree, object_name) {
+/**
+ * Identify the deleted service definition in the previous commit and grab its sha value for object GitHub Blob retrieval
+ * 
+ * @param {Object} previousTree the object list from the repo's previous state, before the deletion
+ * @param {String} object_name the deleted object we are searching for in the previous commit tree
+ * 
+ * @returns {String} the sha of the deleted service definition (from beyond the grave).
+ */
+GheListener.prototype.identifyDeletedFileInTree = function (previousTree, object_name) {
 
   return new Promise((resolve, reject) => {
 
-    logger.info('beforeTree: ' +JSON.stringify(beforeTree, '', '\t'));
-    beforeTree.data.tree.map((element) => {
+    var theSha;
+    // Iterate through the object tree of the previous commit
+    previousTree.data.tree.map((element, index) => {
       if (element.path === object_name) {
-        logger.info('element: ' +JSON.stringify(element));
 
-        var theSha = element.sha;
-        logger.info('theSha: ' +theSha);
-        logger.info('the sha is a: ' +typeof theSha);
+        theSha = element.sha;
+        if (DEBUG === true) { logger.info('[GheListenenr - DEBUG] identifyDeletedFileInTree() - tree element: ' +JSON.stringify(element)+ 'theSha: ' +theSha); }
 
+        // Return the deleted objects sha
         resolve(theSha);
+
+      }
+      else if ((previousTree.data.tree.length -1) === index && typeof theSha === 'undefined') {
+
+        // We didn't find the object in the previous commit
+        reject('object not found');
 
       }
     });
@@ -404,18 +472,21 @@ GheListener.prototype.identifyDeletedFileInTree = function (beforeTree, object_n
 };
 
 /**
- * Parse the commit message to identify acctions: add/modify/delete
+ * Apply the new, or modified, service definition to the BIG-IP
+ * @param {Object} service_def retireved from GitHub repo
  * 
- * @returns {Object} retrieved from GitHub Enterprise
+ * @returns {Object} AS3's declaration processing results
  */
-GheListener.prototype.applyServiceDefinition = function (body) {
+GheListener.prototype.applyServiceDefinition = function (service_def) {
 
   return new Promise((resolve, reject) => {
 
+    // Build the declaration POST message
     var as3path = '/mgmt/shared/appsvcs/declare'; 
     var uri = this.restHelper.makeRestnodedUri(as3path);
-    var restOp = this.createRestOperation(uri, body);
+    var restOp = this.createRestOperation(uri, service_def);
     
+    // Send the declaration POST message to the BIG-IP
     this.restRequestSender.sendPost(restOp)
     .then((resp) => {
 
@@ -439,20 +510,34 @@ GheListener.prototype.applyServiceDefinition = function (body) {
 
 };
 
-// Required for deletions
+/**
+ * Identify the Tenant in the deleted service definition. Required for deletion URI
+ * 
+ * @param {Object} delcaration retireved from deleted file in GitHub repo
+ * 
+ * @returns {String} the tenant name 
+ */
 GheListener.prototype.identifyTenant = function (declaration) {
 
   return new Promise((resolve, reject) => {
   
-    Object.keys(declaration).forEach( function(key) {
+    var tenant;
+    Object.keys(declaration).map((key, index) => {
       if (DEBUG === true) { logger.info('[GheListener - DEBUG] processing declaration keys. Current key is: ' +key); }
 
       if (declaration[key].class == 'Tenant' ) {
 
+        tenant = key; 
         if (DEBUG === true) { logger.info('[GheListener - DEBUG] - The \'Tenant\' is: ' +key); }  
-        resolve(key);
+        resolve(tenant);
 
       }
+      else if ((Object.keys(declaration).length -1) === index && typeof tenant === 'undefined') {
+
+        reject('[GheListener - ERROR] identifyTenant() - no tenant found');
+
+      }
+
     });
   });
 
@@ -460,18 +545,22 @@ GheListener.prototype.identifyTenant = function (declaration) {
 };
 
 /**
- * Parse the commit message to identify acctions: add/modify/delete
+ * Build the service definition deletion message and send to the BIG-IP
  * 
- * @returns {Object} retrieved from GitHub Enterprise
+ * @param {String} tenant for which we are deleting
+ * 
+ * @returns {Object} results of the deletion action
  */
 GheListener.prototype.deleteServiceDefinition = function (tenant) {
 
   return new Promise((resolve, reject) => {
 
+    // Build the deletion message
     var as3path = '/mgmt/shared/appsvcs/declare/'+tenant; 
     var uri = this.restHelper.makeRestnodedUri(as3path);
     var restOp = this.createRestOperation(uri);
-    
+
+    // Send the deletion message to the BIG-IP
     this.restRequestSender.sendDelete(restOp)
     .then((resp) => {
 
@@ -495,9 +584,13 @@ GheListener.prototype.deleteServiceDefinition = function (tenant) {
 };
 
 /**
- * Parse the commit message to identify acctions: add/modify/delete
+ * Create a GitHub Issue in the source repo with the success/fail results
  * 
- * @returns {Object} retrieved from GitHub Enterprise
+ * @param {String} filename that was added/modified/deleted to trigger this workflow
+ * @param {Sting} action that was performed: added/modified/deleted a service definition
+ * @param {Object} results from the added/modified/deleted action on the BIG-IP
+ * 
+ * @returns {String} HTTP Status code from creating the GitHub Issue
  */
 GheListener.prototype.createGithubIssue = function (file_name, action, results) {
 
