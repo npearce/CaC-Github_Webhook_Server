@@ -73,6 +73,7 @@ GheListener.prototype.onPost = function(restOperation) {
     let ref_array = postData.ref.split('/');
     this.state.branch = ref_array[2]; // Grab the 'branch' from the end of 'ref' string
     this.state.head_commit_id = postData.head_commit.id; // The sha for this commit, for which we received the commit webhook message
+    this.state.head_commit_url = postData.head_commit.url; // Link directly to the commit data
     this.state.owner = postData.repository.owner.name; //repository owner
     this.state.repo_name = postData.repository.name; // repository name
     this.state.repo_fullname = postData.repository.full_name; // owner+responsitory name
@@ -611,7 +612,9 @@ GheListener.prototype.createGithubIssue = function (file_name, action, results) 
     });
 
     let title = action+' \"' +file_name+ '\"';
-    octokit.issues.create({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, title: title, labels: [action], body: JSON.stringify(results, '', '\t')})
+    let body = JSON.stringify(results, '', '\t')+ '\n\nThe Commit: ' +this.state.head_commit_url;
+
+    octokit.issues.create({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, title: title, labels: [action], body: body})
     .then((result) => {
 
       logger.info('[GheListener] - createGithubIssue() result.status: ' +result.status);
