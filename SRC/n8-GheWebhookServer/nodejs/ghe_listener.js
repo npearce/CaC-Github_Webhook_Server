@@ -99,7 +99,7 @@ GheListener.prototype.onPost = function(restOperation) {
     })
     .catch((err) => {
 
-      logger.info('[GheListener - DEBUG] - err in master promise chain: ' +JSON.stringify(err));
+      logger.info('[GheListener - ERROR] - error in master promise chain: ' +JSON.stringify(err));
 
     });
   
@@ -146,7 +146,7 @@ GheListener.prototype.getConfig = function () {
       }
       else {
 
-        reject('[GheListener - ERROR] getConfig() -  unable to retrieve config');
+        reject('[GheListener - ERROR] getConfig() -  No settings found. Check /ghe_settings');
 
       }
 
@@ -154,7 +154,6 @@ GheListener.prototype.getConfig = function () {
     .catch ((err) => {
 
       logger.info('[GheListener] - Error retrieving settings: ' +err);
-      reject(err);
 
     });
 
@@ -179,7 +178,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
     // Iterate through 'commits' array to handle added|modified|removed definitions
     commitMessage.commits.map((element, index) => {
 
-      // Handle new/modified service definitions.
+      // Handle new service definitions.
       if (element.added.length > 0) {
 
         // Iterate through the 'added' array of the Commit Message
@@ -216,7 +215,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 
       }
 
-      // Handle new/modified service definitions.
+      // Handle modified service definitions.
       if (element.modified.length > 0) {
         
         // Iterate through the 'modified' array of the Commit Message
@@ -253,7 +252,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 
       }
 
-      // Handle new/modified service definitions.
+      // Handle removed service definitions.
       if (element.removed.length > 0) {
 
         // Iterate through the 'removed' array of the Commit Message
@@ -302,11 +301,6 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
       if ((element.added.length+element.modified.length+element.removed.length - 1) === index) {
 
         resolve(this.state.actions);
-
-      }
-      else {
-
-        reject('[GheListener - ERROR] parseCommitMessage() failed');
 
       }
 
@@ -369,7 +363,6 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
     .catch(err => {
 
       logger.info('[GheListener - ERROR] - getServiceDefinition(): ' +JSON.stringify(err));
-      reject(err);
 
     });
   });
@@ -437,10 +430,16 @@ GheListener.prototype.getDeletedServiceDefinition = function (object_name, befor
 
       } catch (err) {
 
-        logger.info('[GheListener - ERROR] - getServiceDeletedDefinition(): Attempting to parse service def error: ' +err);
-        reject('[GheListener - ERROR] - getServiceDeletedDefinition(): Unable to parse');
+        let error = '[GheListener - ERROR] - getServiceDeletedDefinition(): Attempting to parse service def: ' +err;
+        logger.info(error);
+        reject(error);
         
       }
+
+    })
+    .catch(err => {
+
+      logger.info('[GheListener - ERROR] - getServiceDeletedDefinition(): ' +JSON.stringify(err));
 
     });
 
@@ -513,8 +512,6 @@ GheListener.prototype.applyServiceDefinition = function (service_def) {
     .catch((err) => {
 
       logger.info('[GheListener - ERROR] - applyServiceDefinition(): ' +err);
-      reject(err);
-
 
     });
 
@@ -551,8 +548,8 @@ GheListener.prototype.identifyTenant = function (declaration) {
       }
 
     });
-  });
 
+  });
 
 };
 
@@ -587,7 +584,6 @@ GheListener.prototype.deleteServiceDefinition = function (tenant) {
     .catch((err) => {
 
       logger.info('[GheListener - ERROR] - deleteServiceDefinition(): ' +err);
-      reject(err);
 
     });
 
@@ -626,7 +622,6 @@ GheListener.prototype.createGithubIssue = function (file_name, action, results) 
     .catch((err) => {
 
       logger.info('[GheListener - ERROR] - createGithubIssue() error: ' +JSON.stringify(err, '', '\t'));
-      reject(err);
 
     });
   });
