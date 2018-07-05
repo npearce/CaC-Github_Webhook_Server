@@ -297,9 +297,8 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 
       }
 
-
       // Return when all commits processed
-      if ((commitMessage.commits.length - 1) === index) {
+      if ((element.added.length+element.modified.length+element.removed.length - 1) === index) {
 
         resolve(this.state.actions);
 
