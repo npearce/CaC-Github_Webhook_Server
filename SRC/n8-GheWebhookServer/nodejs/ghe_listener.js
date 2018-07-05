@@ -358,7 +358,9 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
 
       } catch (err) {
 
-        logger.info('[GheListener - ERROR] - getServiceDefinition(): Attempting to parse service def error: ' +err);
+        let error = '[GheListener - ERROR] - getServiceDefinition(): Attempting to parse service def error: ' +err;
+        logger.info(error);
+        reject(error);
         
       }
 
