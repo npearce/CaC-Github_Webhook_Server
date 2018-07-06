@@ -9,12 +9,9 @@
 "use strict";
 
 const logger = require('f5-logger').getInstance();
-var Queue = require('promise-queue');
+const Queue = require('promise-queue');
 var maxConcurrent = 1;
-var maxQueue = 10;
-var queue = new Queue(maxConcurrent, maxQueue);
 const gheSettingsPath = '/shared/n8/ghe_settings';
-
 const octokit = require('@octokit/rest')({
   headers: {
     accept: 'application/vnd.github.v3+json'
@@ -143,6 +140,13 @@ GheListener.prototype.getConfig = function () {
           DEBUG = false;
         }
 
+        if (typeof resp.body.config.max_queue_length !== 'undefined' && resp.body.config.max_queue_length !== this.config.max_queue_length) {
+          this.config.max_queue_length = resp.body.config.max_queue_length;
+        }
+        else {
+          this.config.max_queue_length = 10; //Default max queue length
+        }
+
         this.config = resp.body.config;
         this.config.baseUrl = 'https://'+resp.body.config.ghe_ip_address+'/api/v3';
         resolve(this.config);
@@ -176,6 +180,8 @@ GheListener.prototype.getConfig = function () {
  * @returns {Object} array of addition/modification/deletion actions
  */
 GheListener.prototype.parseCommitMessage = function (commitMessage) {
+
+  var queue = new Queue(maxConcurrent, this.config.max_queue_length);
 
   return new Promise((resolve, reject) => {
 
@@ -285,18 +291,15 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
         // Iterate through the 'removed' array of the Commit Message
         element.removed.map((serviceDel) => {
 
-          queue.add(() => {
+          let action = { "Deleted": serviceDel };
+          this.state.actions.push(action);
 
-            let action = { "Deleted": serviceDel };
-            this.state.actions.push(action);
+          // For each deletion, fetch the service definition from the repo, so we can identify the Tenant          
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] Found a deletion to the repo - serviceDel: ' +serviceDel); }
+          logger.info('theDel is: ' +serviceDel);
+          
+          return this.getDeletedServiceDefinition(serviceDel, commitMessage.before)
 
-            // For each deletion, fetch the service definition from the repo, so we can identify the Tenant          
-            if (DEBUG === true) { logger.info('[GheListener - DEBUG] Found a deletion to the repo - serviceDel: ' +serviceDel); }
-            logger.info('theDel is: ' +serviceDel);
-            
-            return this.getDeletedServiceDefinition(serviceDel, commitMessage.before);
-
-          })
           .then((service_definition) => {
 
             // Use the service definition to identify the tenant, required for the deletion URI
