@@ -63,8 +63,9 @@ POST https://{{bigip_mgmt_addr}}/mgmt/shared/n8/ghe_settings
 {
     "config":
         {
-            "ghe_ip_address": "{{x.x.x.x}}",
-            "ghe_access_token": "{{xxxxxxxxxxxxxxxxxx}}"
+            "ghe_base_url": "{{https://xxxxx/api/v3}}",
+            "ghe_access_token": "{{xxxxxxxxxxxxxxxxxx}}",
+            "queue_length": "{{x}}"
         }
 }
 ```
@@ -72,7 +73,7 @@ POST https://{{bigip_mgmt_addr}}/mgmt/shared/n8/ghe_settings
 Example, using curl this woud look like:
 
 ```sh
-curl -u <username>:<password> -X POST -H 'Content-type: application/json' http://localhost:8100/mgmt/shared/n8/ghe_settings -d '{"config":{"ghe_ip_address": "172.31.1.200", "ghe_access_token": "b95bcc50728b2afdd779f450ae55b2246b1a5cb9"}}'
+curl -u <username>:<password> -X POST -H 'Content-type: application/json' http://localhost:8100/mgmt/shared/n8/ghe_settings -d '{"config":{"ghe_base_url": "https://172.31.1.200/api/v3", "ghe_access_token": "b95bcc50728b2afdd779f450ae55b2246b1a5cb9"}}'
 ```
 
 ## Troubleshooting
@@ -87,6 +88,7 @@ POST https://{{bigip_mgmt_addr}}/mgmt/shared/n8/ghe_settings
         {
             "ghe_ip_address": "{{x.x.x.x}}",
             "ghe_access_token": "{{xxxxxxxxxxxxxxxxxx}}",
+            "queue_length": "{{x}}"
             "debug": "true"
         }
 }
