@@ -37,16 +37,6 @@ The response will look something like this:
 
 Note the `"status":"FINISHED"` indicating that installation was successful.
 
-5. [OPTIONAL] Confirm you can reach the newly installed REST end-point and that it is running (note the `/available` on the end:
-
-`curl -u <username>:<password> -X GET http://localhost:8100/mgmt/shared/n8/ghe_listener/available`
-
-Your response should be without error, e.g.:
-
-```json
-{}
-````
-
 ## Configuration
 
 The GitHub Webhook Server for BIG-IP needs two values to operate. 
@@ -69,6 +59,8 @@ POST https://{{bigip_mgmt_addr}}/mgmt/shared/n8/ghe_settings
         }
 }
 ```
+
+NOTE: If no 'ghe_base_url' is provided, it will default to `api.github.com`. For GitHub Enterprise, either setup a DNS entry for `api.mygithub.com` or, if you don't setup DNS, remember to append `/api/v3` to the end of the IP Address (GitHub will need this to know its an API call, if it cannot see `api.` in the HTTP Host header). 
 
 Example, using curl this woud look like:
 
