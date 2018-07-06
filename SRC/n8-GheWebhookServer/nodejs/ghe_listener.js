@@ -148,7 +148,6 @@ GheListener.prototype.getConfig = function () {
         }
 
         this.config = resp.body.config;
-        this.config.baseUrl = 'https://'+resp.body.config.ghe_ip_address+'/api/v3';
         resolve(this.config);
 
       }
@@ -197,9 +196,6 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
         // Iterate through the 'added' array of the Commit Message
         element.added.map((serviceAdd) => {
 
-          logger.info('queue.getQueueLength(): ' +queue.getQueueLength());
-          logger.info('queue.getPendingLength(): ' +queue.getQueueLength());
-
           let action = { "Added": serviceAdd };
           this.state.actions.push(action);
 
@@ -209,9 +205,10 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 
           .then((service_definition) => {
 
-            // Deploy the new service to the BIG-IP
+            // Using queuing for asynchronous communication with AS3
             return queue.add(() => {
-              
+
+              // Deploy the new service to the BIG-IP    
               return this.applyServiceDefinition(service_definition);
 
             });
@@ -220,6 +217,11 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
           .then((resp) => {
 
             if (DEBUG === true) { logger.info('[GheListener - DEBUG] this.applyServiceDefinition() - resp: ' +JSON.stringify(resp)); }
+
+            if (DEBUG === true) { 
+              logger.info('queue.getQueueLength(): ' +queue.getQueueLength());
+              logger.info('queue.getPendingLength(): ' +queue.getQueueLength());
+            }
 
             // Post the results back into the source repo as a GitHub Issue
             this.createGithubIssue(serviceAdd, "Added", resp);
@@ -244,9 +246,6 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
         // Iterate through the 'modified' array of the Commit Message
         element.modified.map((serviceMod) => {
 
-          logger.info('queue.getQueueLength(): ' +queue.getQueueLength());
-          logger.info('queue.getPendingLength(): ' +queue.getQueueLength());
-
           let action = { "Modified": serviceMod };
           this.state.actions.push(action);
 
@@ -256,9 +255,10 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 
           .then((service_definition) => {
 
+            // Using queuing for asynchronous communication with AS3
             return queue.add(() => {
-
-            // Deploy the modified service to the BIG-IP (its idempotent, so treated same as new service)
+    
+              // Deploy the modified service to the BIG-IP (its idempotent, so treated same as new service)
               return this.applyServiceDefinition(service_definition);
 
             });
@@ -267,6 +267,11 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
           .then((resp) => {
 
             if (DEBUG === true) { logger.info('[GheListener - DEBUG] this.applyServiceDefinition() - resp: ' +JSON.stringify(resp)); }
+
+            if (DEBUG === true) { 
+              logger.info('queue.getQueueLength(): ' +queue.getQueueLength());
+              logger.info('queue.getPendingLength(): ' +queue.getQueueLength());
+            }
 
             // Post the results back into the source repo as a GitHub Issue
             this.createGithubIssue(serviceMod, "Modified", resp);
@@ -308,6 +313,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
           })
           .then((tenant) => {
 
+            // Using queuing for asynchronous communication with AS3
             return queue.add(() => {
 
               // Pass the Tenant name to deleteServiceDefinition() for deletion
@@ -320,6 +326,11 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
           .then((resp) => {
 
             if (DEBUG === true) { logger.info('[GheListener - DEBUG] this.deleteServiceDefinition() - resp: ' +JSON.stringify(resp)); }
+
+            if (DEBUG === true) { 
+              logger.info('queue.getQueueLength(): ' +queue.getQueueLength());
+              logger.info('queue.getPendingLength(): ' +queue.getQueueLength());
+            }
 
             // Post the results back into the source repo as a GitHub Issue
             this.createGithubIssue(serviceDel, "Deleted", resp);
@@ -367,7 +378,7 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
       token: this.config.ghe_access_token
     });
 
-    octokit.repos.getContent({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, path: object_name})
+    octokit.repos.getContent({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, path: object_name})
 
     .then(result => {
  
@@ -429,12 +440,12 @@ GheListener.prototype.getDeletedServiceDefinition = function (object_name, befor
 
     if (DEBUG === true) { logger.info('[GheListener - DEBUG] getDeletedServiceDefinition() - the object name: ' +object_name+ ' and the previous commit sha: ' +before); }
 
-    octokit.gitdata.getCommit({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, commit_sha: before})
+    octokit.gitdata.getCommit({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, commit_sha: before})
     .then((previousCommit) => {
 
       // From the previous commit, retireve the repo tree 
       if (DEBUG === true) { logger.info('[GheListener - DEBUG] getDeletedServiceDefinition() - the pre-deletion commit: ' +JSON.stringify(previousCommit, '', '\t')); }
-      return octokit.gitdata.getTree({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, tree_sha: previousCommit.data.tree.sha, recursive: 1});
+      return octokit.gitdata.getTree({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, tree_sha: previousCommit.data.tree.sha, recursive: 1});
 
     })
     .then((beforeTree) => {
@@ -447,7 +458,7 @@ GheListener.prototype.getDeletedServiceDefinition = function (object_name, befor
       logger.info('theSha:' +theSha);
 
       // Grab the service definition (from beyond the grave) 
-      return octokit.gitdata.getBlob({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, file_sha: theSha});
+      return octokit.gitdata.getBlob({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, file_sha: theSha});
 
     })
     .then((result) => {
@@ -658,7 +669,7 @@ GheListener.prototype.createGithubIssue = function (file_name, action, results) 
     let title = action+' \"' +file_name+ '\"';
     let body = JSON.stringify(results, '', '\t')+ '\n\nThe Commit: ' +this.state.head_commit_url;
 
-    octokit.issues.create({baseUrl: this.config.baseUrl, owner: this.state.owner, repo: this.state.repo_name, title: title, labels: [action], body: body})
+    octokit.issues.create({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, title: title, labels: [action], body: body})
     .then((result) => {
 
       logger.info('[GheListener] - createGithubIssue() result.status: ' +result.status);
@@ -703,7 +714,7 @@ GheListener.prototype.getExampleState = function () {
   
   return {
     "config": {
-      "ghe_ip_address":"[ip_address]",
+      "ghe_base_url":"https://[ip_address]/api/v3",
       "ghe_access_token": "[GitHub Access Token]",
       "debug": "[true|false]"
     }
