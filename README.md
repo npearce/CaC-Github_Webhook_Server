@@ -1,6 +1,6 @@
 # Github Infrastructure-as-Code WebHook Server for F5 BIG-IP
 
-<img align="right" width="150px" src="IaC_Logo-300dpi.png" alt="IaC_Logo"/>
+<img align="right" width="300px" src="IaC_Logo-300dpi.png" alt="IaC_Logo"/>
 
 Using GitHub's Webhook feature, this Webhook Server automates Infrastructure as Code management of F5's BIG-IP devices (hardware or software).
 
