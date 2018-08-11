@@ -365,7 +365,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 /**
  * Retrieve the added/modified/deleted object from GitHub and verify it is a service defintion
  * 
- * @param {Object} object_name of the add/mod/del to the source repository
+ * @param {String} object_name of the add/mod/del to the source repository
  * 
  * @returns {Object} the service defition retrieved from GitHub
  */
@@ -394,11 +394,16 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
 
         service_def = JSON.parse(content);
 
-        if (typeof service_def.action !== undefined && typeof service_def.declaration.class !== undefined && service_def.declaration.class === 'ADC' && service_def.action === 'deploy' || service_def.action === 'dry-run') {
-
+        if (typeof service_def.class !== undefined && service_def.class === 'AS3' && typeof service_def.declaration.class !== undefined && service_def.declaration.class === 'ADC' && typeof service_def.action !== undefined && service_def.action === 'deploy' || service_def.action === 'dry-run') {
+          
           if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getServiceDefinition(): We have a BIG-IP Service Defintion: ' +JSON.stringify(service_def)); }
 
           resolve(service_def);
+
+        }
+        else {
+
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] \''+ object_name +'\' is not an AS3 declaration. Skipping.....'); }
 
         }
 
@@ -472,11 +477,16 @@ GheListener.prototype.getDeletedServiceDefinition = function (object_name, befor
       try {
 
         service_def = JSON.parse(content);
-
+        
         // Check it resembles a BIG-IP Service Definition
-        if (typeof service_def.declaration.class !== undefined && service_def.declaration.class === 'ADC') {
+        if (typeof service_def.class !== undefined && service_def.class === 'AS3' && typeof service_def.declaration.class !== undefined && service_def.declaration.class === 'ADC') {
 
           resolve(service_def);
+
+        }
+        else {
+
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] \''+ object_name +'\' is not an AS3 declaration. Skipping.....'); }
 
         }
 
