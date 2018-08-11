@@ -81,4 +81,20 @@ GheSettings.prototype.onPost = function(restOperation) {
       
 };
 
+
+/**
+ * handle /example HTTP request
+ */
+GheSettings.prototype.getExampleState = function () {    
+  
+    return {
+        "config": {
+            "ghe_base_url":"https://[ip_address]/api/v3",
+            "ghe_access_token": "[GitHub Access Token]",
+            "debug": "[true|false]"
+        }
+    };
+  
+};
+
 module.exports = GheSettings;
