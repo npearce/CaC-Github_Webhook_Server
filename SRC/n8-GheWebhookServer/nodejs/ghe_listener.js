@@ -394,7 +394,7 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
 
         service_def = JSON.parse(content);
 
-        if (typeof service_def.action !== undefined && service_def.action === 'deploy' || service_def.action === 'dry-run') {
+        if (typeof service_def.action !== undefined && typeof service_def.declaration.class !== undefined && service_def.declaration.class === 'ADC' && service_def.action === 'deploy' || service_def.action === 'dry-run') {
 
           if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getServiceDefinition(): We have a BIG-IP Service Defintion: ' +JSON.stringify(service_def)); }
 
@@ -474,7 +474,7 @@ GheListener.prototype.getDeletedServiceDefinition = function (object_name, befor
         service_def = JSON.parse(content);
 
         // Check it resembles a BIG-IP Service Definition
-        if (typeof service_def !== 'undefined' && service_def.declaration.class === 'ADC') {
+        if (typeof service_def.declaration.class !== undefined && service_def.declaration.class === 'ADC') {
 
           resolve(service_def);
 
