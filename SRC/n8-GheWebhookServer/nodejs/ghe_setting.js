@@ -89,9 +89,10 @@ GheSettings.prototype.getExampleState = function () {
   
     return {
         "config": {
-            "ghe_base_url":"https://[ip_address]/api/v3",
+            "ghe_base_url":"https://1.1.1.1/api/v3",
             "ghe_access_token": "[GitHub Access Token]",
-            "debug": "[true|false]"
+            "max_queue_length": 10,
+            "debug": false
         }
     };
   
