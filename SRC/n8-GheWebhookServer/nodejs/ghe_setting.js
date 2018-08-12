@@ -83,7 +83,7 @@ GheSettings.prototype.onPost = function(restOperation) {
         this.validateSettings(newState)
         .then((results) => {
 
-            logger.info('[GheSettings] - Settings validation results: ' +JSON.stringify(results, '', '\t'));
+            logger.info('[GheSettings] - Settings validation results: ' +results);
 
         })
         .catch((err) => {
@@ -116,10 +116,10 @@ GheSettings.prototype.validateSettings = function(newState) {
         let title = 'Validated settings for: ' +hostname;
         let body = 'The F5 BIG-IP: \''+hostname+'\' is managed by this repository: \'' +newState.config.repository+ '\'';
 
-        octokit.issues.create({baseUrl: newState.config.ghe_base_url, owner: repo[0], repo: repo[1], title: title, labels: ['validate'], body: body})
+        octokit.issues.create({baseUrl: newState.config.ghe_base_url, owner: repo[0], repo: repo[1], title: title, labels: ['validated'], body: body})
         .then((result) => {
 
-            resolve(result.status);
+            resolve(result.headers.status);
 
         })
         .catch((err) => {
