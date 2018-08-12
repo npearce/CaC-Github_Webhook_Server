@@ -684,6 +684,9 @@ GheListener.prototype.createGithubIssue = function (file_name, action, results) 
 
   return new Promise((resolve, reject) => {
 
+    var title = '';
+    var labels = [];
+
     octokit.authenticate({
       type: 'oauth',
       token: this.config.ghe_access_token
@@ -691,14 +694,14 @@ GheListener.prototype.createGithubIssue = function (file_name, action, results) 
 
     if (results.dryRun === true) {
 
-      var title = 'Dry-Run: '+action+' \"' +file_name+ '\"';
-      var labels = ['Dry-Run', action];
+      title = 'Dry-Run: '+action+' \"' +file_name+ '\"';
+      labels = ['Dry-Run', action];
 
     }
     else {
 
-      var title = action+' \"' +file_name+ '\"';
-      var labels = [action];
+      title = action+' \"' +file_name+ '\"';
+      labels = [action];
 
     }
 
