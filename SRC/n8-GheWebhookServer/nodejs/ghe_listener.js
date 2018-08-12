@@ -208,7 +208,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
             // Using queuing for asynchronous communication with AS3
             return queue.add(() => {
 
-              // Deploy the new service to the BIG-IP    
+              // Deploy the new service to the BIG-IP
               return this.applyServiceDefinition(service_definition);
 
             });
@@ -258,7 +258,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
             // Using queuing for asynchronous communication with AS3
             return queue.add(() => {
     
-              // Deploy the modified service to the BIG-IP (its idempotent, so treated same as new service)
+              // Deploy the new service to the BIG-IP
               return this.applyServiceDefinition(service_definition);
 
             });
@@ -378,7 +378,7 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
       token: this.config.ghe_access_token
     });
 
-    octokit.repos.getContent({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, path: object_name})
+    octokit.repos.getContent({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, path: object_name, ref: this.state.branch})
 
     .then(result => {
  
@@ -558,6 +558,15 @@ GheListener.prototype.applyServiceDefinition = function (service_def) {
 
   return new Promise((resolve, reject) => {
 
+    if (DEBUG === true) { logger.info('[GheListenenr - DEBUG] applyServiceDefinition(): branch is: ' +this.state.branch+ ' and action is: ' +service_def.action); }
+
+    if (this.state.branch !== 'master') {
+
+      if (DEBUG === true) { logger.info('[GheListenenr - DEBUG] applyServiceDefinition(): branch is not \'master\'. Changing action to: \'dry-run\''); }
+      service_def.action = 'dry-run';
+
+    }
+
     // Build the declaration POST message
     var as3path = '/mgmt/shared/appsvcs/declare'; 
     var uri = this.restHelper.makeRestnodedUri(as3path);
@@ -571,7 +580,7 @@ GheListener.prototype.applyServiceDefinition = function (service_def) {
         logger.info('[GheListener - DEBUG] - applyServiceDefinition() - resp.statusCode: ' +JSON.stringify(resp.statusCode));
         logger.info('[GheListener - DEBUG] - applyServiceDefinition() - resp.body: ' +JSON.stringify(resp.body, '', '\t'));
       }
-      resolve(resp.body.results);
+      resolve(resp.body);
 
     })
     .catch((err) => {
@@ -680,10 +689,22 @@ GheListener.prototype.createGithubIssue = function (file_name, action, results) 
       token: this.config.ghe_access_token
     });
 
-    let title = action+' \"' +file_name+ '\"';
-    let body = JSON.stringify(results, '', '\t')+ '\n\nThe Commit: ' +this.state.head_commit_url;
+    if (results.dryRun === true) {
 
-    octokit.issues.create({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, title: title, labels: [action], body: body})
+      var title = 'Dry-Run: '+action+' \"' +file_name+ '\"';
+      var labels = ['Dry-Run', action];
+
+    }
+    else {
+
+      var title = action+' \"' +file_name+ '\"';
+      var labels = [action];
+
+    }
+
+    let body = JSON.stringify(results.results, '', '\t')+ '\n\nThe Commit: ' +this.state.head_commit_url;
+
+    octokit.issues.create({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, title: title, labels: labels, body: body})
     .then((result) => {
 
       logger.info('[GheListener] - createGithubIssue() result.status: ' +result.status);
