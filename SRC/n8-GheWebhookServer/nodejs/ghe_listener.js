@@ -403,7 +403,9 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
         }
         else {
 
-          if (DEBUG === true) { logger.info('[GheListener - DEBUG] \''+ object_name +'\' is not an AS3 declaration. Skipping.....'); }
+          let error = '\''+ object_name +'\' is not an AS3 declaration. Skipping.....';
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] ' +error); }
+          reject(error);
 
         }
 
@@ -486,8 +488,10 @@ GheListener.prototype.getDeletedServiceDefinition = function (object_name, befor
         }
         else {
 
-          if (DEBUG === true) { logger.info('[GheListener - DEBUG] \''+ object_name +'\' is not an AS3 declaration. Skipping.....'); }
-
+          let error = '\''+ object_name +'\' is not an AS3 declaration. Skipping.....';
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] ' +error); }
+          reject(error);
+          
         }
 
       } catch (err) {
