@@ -208,7 +208,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
             // Using queuing for asynchronous communication with AS3
             return queue.add(() => {
 
-              // Deploy the new service to the BIG-IP    
+              // Deploy the new service to the BIG-IP
               return this.applyServiceDefinition(service_definition);
 
             });
@@ -258,7 +258,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
             // Using queuing for asynchronous communication with AS3
             return queue.add(() => {
     
-              // Deploy the modified service to the BIG-IP (its idempotent, so treated same as new service)
+              // Deploy the new service to the BIG-IP
               return this.applyServiceDefinition(service_definition);
 
             });
@@ -365,7 +365,7 @@ GheListener.prototype.parseCommitMessage = function (commitMessage) {
 /**
  * Retrieve the added/modified/deleted object from GitHub and verify it is a service defintion
  * 
- * @param {Object} object_name of the add/mod/del to the source repository
+ * @param {String} object_name of the add/mod/del to the source repository
  * 
  * @returns {Object} the service defition retrieved from GitHub
  */
@@ -378,7 +378,7 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
       token: this.config.ghe_access_token
     });
 
-    octokit.repos.getContent({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, path: object_name})
+    octokit.repos.getContent({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, path: object_name, ref: this.state.branch})
 
     .then(result => {
  
@@ -394,11 +394,18 @@ GheListener.prototype.getServiceDefinition = function (object_name) {
 
         service_def = JSON.parse(content);
 
-        if (typeof service_def.action !== undefined && service_def.action === 'deploy' || service_def.action === 'dry-run') {
-
+        if (typeof service_def.class !== undefined && service_def.class === 'AS3' && typeof service_def.declaration.class !== undefined && service_def.declaration.class === 'ADC' && typeof service_def.action !== undefined && service_def.action === 'deploy' || service_def.action === 'dry-run') {
+          
           if (DEBUG === true) { logger.info('[GheListener - DEBUG] - getServiceDefinition(): We have a BIG-IP Service Defintion: ' +JSON.stringify(service_def)); }
 
           resolve(service_def);
+
+        }
+        else {
+
+          let error = '\''+ object_name +'\' is not an AS3 declaration. Skipping.....';
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] ' +error); }
+          reject(error);
 
         }
 
@@ -472,12 +479,19 @@ GheListener.prototype.getDeletedServiceDefinition = function (object_name, befor
       try {
 
         service_def = JSON.parse(content);
-
+        
         // Check it resembles a BIG-IP Service Definition
-        if (typeof service_def !== 'undefined' && service_def.declaration.class === 'ADC') {
+        if (typeof service_def.class !== undefined && service_def.class === 'AS3' && typeof service_def.declaration.class !== undefined && service_def.declaration.class === 'ADC') {
 
           resolve(service_def);
 
+        }
+        else {
+
+          let error = '\''+ object_name +'\' is not an AS3 declaration. Skipping.....';
+          if (DEBUG === true) { logger.info('[GheListener - DEBUG] ' +error); }
+          reject(error);
+          
         }
 
       } catch (err) {
@@ -544,6 +558,15 @@ GheListener.prototype.applyServiceDefinition = function (service_def) {
 
   return new Promise((resolve, reject) => {
 
+    if (DEBUG === true) { logger.info('[GheListenenr - DEBUG] applyServiceDefinition(): branch is: ' +this.state.branch+ ' and action is: ' +service_def.action); }
+
+    if (this.state.branch !== 'master') {
+
+      if (DEBUG === true) { logger.info('[GheListenenr - DEBUG] applyServiceDefinition(): branch is not \'master\'. Changing action to: \'dry-run\''); }
+      service_def.action = 'dry-run';
+
+    }
+
     // Build the declaration POST message
     var as3path = '/mgmt/shared/appsvcs/declare'; 
     var uri = this.restHelper.makeRestnodedUri(as3path);
@@ -557,7 +580,7 @@ GheListener.prototype.applyServiceDefinition = function (service_def) {
         logger.info('[GheListener - DEBUG] - applyServiceDefinition() - resp.statusCode: ' +JSON.stringify(resp.statusCode));
         logger.info('[GheListener - DEBUG] - applyServiceDefinition() - resp.body: ' +JSON.stringify(resp.body, '', '\t'));
       }
-      resolve(resp.body.results);
+      resolve(resp.body);
 
     })
     .catch((err) => {
@@ -661,15 +684,30 @@ GheListener.prototype.createGithubIssue = function (file_name, action, results) 
 
   return new Promise((resolve, reject) => {
 
+    var title = '';
+    var labels = [];
+
     octokit.authenticate({
       type: 'oauth',
       token: this.config.ghe_access_token
     });
 
-    let title = action+' \"' +file_name+ '\"';
-    let body = JSON.stringify(results, '', '\t')+ '\n\nThe Commit: ' +this.state.head_commit_url;
+    if (results.dryRun === true) {
 
-    octokit.issues.create({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, title: title, labels: [action], body: body})
+      title = 'Dry-Run: '+action+' \"' +file_name+ '\"';
+      labels = ['Dry-Run', action];
+
+    }
+    else {
+
+      title = action+' \"' +file_name+ '\"';
+      labels = [action];
+
+    }
+
+    let body = JSON.stringify(results.results, '', '\t')+ '\n\nThe Commit: ' +this.state.head_commit_url;
+
+    octokit.issues.create({baseUrl: this.config.ghe_base_url, owner: this.state.owner, repo: this.state.repo_name, title: title, labels: labels, body: body})
     .then((result) => {
 
       logger.info('[GheListener] - createGithubIssue() result.status: ' +result.status);
@@ -704,21 +742,6 @@ GheListener.prototype.createRestOperation = function (uri, body) {
       }
 
   return restOp;
-
-};
-
-/**
- * handle /example HTTP request
- */
-GheListener.prototype.getExampleState = function () {
-  
-  return {
-    "config": {
-      "ghe_base_url":"https://[ip_address]/api/v3",
-      "ghe_access_token": "[GitHub Access Token]",
-      "debug": "[true|false]"
-    }
-  };
 
 };
 

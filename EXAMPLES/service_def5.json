@@ -1,0 +1,41 @@
+{
+    "class": "AS3",
+    "action": "deploy",
+    "persist": true,
+    "declaration": {
+       "class": "ADC",
+       "schemaVersion": "3.0.0",
+       "id": "abc12345",
+       "label": "Sample 5",
+       "remark": "Simple HTTP application with RR pool",
+       "Tenant_05": {
+          "class": "Tenant",
+          "App5": {
+             "class": "Application",
+             "template": "http",
+             "serviceMain": {
+                "class": "Service_HTTP",
+                "virtualAddresses": [
+                   "172.31.4.51"
+                ],
+                "pool": "web_pool5"
+             },
+             "web_pool5": {
+                "class": "Pool",
+                "monitors": [
+                   "http"
+                ],
+                "members": [{
+                   "servicePort": 80,
+                   "serverAddresses": [
+                      "172.31.10.151",
+                      "172.31.10.152",
+                      "172.31.10.153",
+                      "172.31.10.154"
+                   ]
+                }]
+             }
+          }
+       }
+    }
+ }
