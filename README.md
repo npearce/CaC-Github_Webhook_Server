@@ -1,14 +1,18 @@
-# Github Infrastructure-as-Code WebHook Server for F5 BIG-IP
+# Github Configuration-as-Code WebHook Server for F5 BIG-IP
 
 <img align="right" width="300px" src="IaC_Logo-300dpi.png" alt="IaC_Logo"/>
 
-Using GitHub's Webhook feature, this Webhook Server automates Infrastructure as Code management of F5's BIG-IP devices (hardware or software).
+Using GitHub's Webhook feature, this Webhook Server automates Configuration as Code management of F5's BIG-IP devices (hardware or software).
 
 ## Description
 
-Infrastructure-as-Code has predominantely focussed on 'server' infrastructure. However, this 'Network Infrastructure as Code' solution allows engineers to 'commit' F5 BIG-IP service definitions to a Github repository, which results in configured F5 BIG-IP application services ready for application traffic. Installing this Webhook Server onto BIG-IP devices enables for the automated deployment of BIG-IP configurations directly via a Github Webhhok.
+Configuration-as-Code has predominantely focussed on 'server' infrastructure. However, this 'Network Configuration as Code' solution allows engineers to 'commit' F5 BIG-IP service definitions to a Github, or Github Enterprise, repository, which results in configured F5 BIG-IP application services ready for application traffic. Installing this Webhook Server onto BIG-IP devices enables for the automated deployment of BIG-IP configurations directly via a Github Webhook.
 
-This solution was written upon the iControl LX framework. Installed on a BIG-IP, this iControl LX worker presents a `/ghe_listener` REST end-point ready to receive Github 'commit' notifications.
+This solution was written upon the iControl LX framework. Installed on a BIG-IP, this iControl LX worker presents a `/mgmt/shared/webhook/github-listener` REST end-point ready to receive Github 'commit' notifications.
+
+Combine the Github Webhook Server with BigStats (telemetry) for a more complete solution:
+
+![](Webhook-BigStats-Arch_Diag.png)
 
 ## Requirements
 
@@ -25,10 +29,10 @@ This solution was written upon the iControl LX framework. Installed on a BIG-IP,
 ## Workflow
 
 1. Engineer is ready to deploy a service.
-2. Engineer visits the devices "infrasutrcture as code" repository on GitHub and navigates to the '/templates' directory.
+2. Engineer visits the devices "configuration as code" repository on GitHub and navigates to the '/templates' directory.
 3. Based on their requirements, the engineer selects the appropriate template. e.g. "Basic load-balancing", "SSL Offload", "Web Application Firewall", and so on.
-4. Engineer creates a new file in the '/deploy' directory using the template and enters the unique deployment-specific data, e.g.: service name, server IP addresses, etc. See template example below.
-5. A GitHub WebHook sends a Github 'commit' message to the iControl LX REST worker end-point, `/ghe_listener`.
+4. Engineer creates a new file in the '/deploy' directory using the template and enters the unique deployment-specific data, e.g.: service name, server IP addresses, etc. See template examples below.
+5. The GitHub WebHook sends a Github 'commit' message to the iControl LX REST worker end-point at `/mgmt/shared/webhook/github-listener`.
 6. The iControl LX worker consumes and processes as appropriate.
    1. The iContorl LX worker will parse the commit message and identify any service definition changes: if the commit has 'added', 'modified', or 'removed' a service definition.
    2. When complete, the iControl LX worker will create a 'Github Issue' in the source repository with the results (success/failure) of the commit processing.
