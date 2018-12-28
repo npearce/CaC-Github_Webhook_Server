@@ -10,7 +10,7 @@ Configuration-as-Code has predominantely focussed on 'server' infrastructure. Ho
 
 This solution was written upon the iControl LX framework. Installed on a BIG-IP, this iControl LX worker presents a `/mgmt/shared/webhook/github-listener` REST end-point ready to receive Github 'commit' notifications.
 
-Combine the Github Webhook Server with BigStats (telemetry) for a more complete solution:
+Combine the Github Webhook Server with [BigStats](https://github.com/f5devcentral/BigStats) (telemetry exporter) for a more complete solution:
 
 ![](Webhook-BigStats-Arch_Diag.png)
 

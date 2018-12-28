@@ -44,12 +44,12 @@ The GitHub Webhook Server for BIG-IP needs two values to operate.
 1. The IP Address (or hostname) of the GitHub Enterprise server.
 2. An Access Token used to communicate with GitHub Enterprise.
 
-During the RPM installation above, two iControl LX workers were installed `/ghe_listener` and `/ghe_settings`. We will configure the Github Webhook Server using `/ghe_settings`.
+During the RPM installation above, two iControl LX workers were installed `/github-listener` and `/github-settings`. We will configure the Github Webhook Server using `/github-settings`.
 
 To provide these settings you need to `POST` to the `/ghe_settings` worker, e.g.:
 
 ```sh
-POST https://{{bigip_mgmt_addr}}/mgmt/shared/n8/ghe_settings
+POST https://{{bigip_mgmt_addr}}/mgmt/shared/webhook/github-settings
 {
     "config":
         {
@@ -65,7 +65,7 @@ NOTE: If no 'ghe_base_url' is provided, it will default to `api.github.com`. For
 Example, using curl this woud look like:
 
 ```sh
-curl -u <username>:<password> -X POST -H 'Content-type: application/json' http://localhost:8100/mgmt/shared/n8/ghe_settings -d '{"config":{"ghe_base_url": "https://172.31.1.200/api/v3", "ghe_access_token": "b95bcc50728b2afdd779f450ae55b2246b1a5cb9"}}'
+curl -u <username>:<password> -X POST -H 'Content-type: application/json' http://localhost:8100/mgmt/shared/webhook/github-settings -d '{"config":{"ghe_base_url": "https://172.31.1.200/api/v3", "ghe_access_token": "b95bcc50728b2afdd779f450ae55b2246b1a5cb9"}}'
 ```
 
 ## Troubleshooting
@@ -74,7 +74,7 @@ Enable debug mode by POSTing to `/ghe_settings` like so:
 
 
 ```sh
-POST https://{{bigip_mgmt_addr}}/mgmt/shared/n8/ghe_settings
+POST https://{{bigip_mgmt_addr}}/mgmt/shared/webhook/github-settings
 {
     "config":
         {
