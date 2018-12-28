@@ -1,4 +1,9 @@
+.DS_Store
 DEV_NOTES.md
 SRC/GheWebhookServer/nodejs/node_modules/*
 DOCS/flow.pptx
+DOCS/GHE_SETUP_NOTES.md
+.gitignore
+DIST/f5-appsvcs-3.4.0-2.noarch.rpm
+DOCS/GHE_SETUP_NOTES.md
 DOCS/GHE_SETUP_NOTES.md
