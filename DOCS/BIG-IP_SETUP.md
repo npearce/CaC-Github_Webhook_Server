@@ -86,6 +86,19 @@ POST https://{{bigip_mgmt_addr}}/mgmt/shared/n8/ghe_settings
 }
 ```
 
-This will push a **significat** volume of data to the BIG-IP log: `/var/log/restnoded/restnoded/log`
+This will push a **significat** volume of data to the BIG-IP log: `/var/log/restnoded/restnoded.log`
 
 NODE: Remember to disabe debug made with `"debug": "false"` when troubleshooting is complete. 
+
+## UNINSTALL
+
+1. Verify the version you are running in: `/mgmt/shared/iapp/global-installed-packages`. For example, on the BIG-IP, execute:
+
+`curl -u <username>:<password> -X GET http://localhost:8100/mgmt/shared/iapp/global-installed-packages/`
+
+Note the version you are running.
+
+2. Uninstall the Github Webhook Servier with via `/mgmt/shared/iapp/package-management-tasks`. For example, on the BIG-IP, execute:
+
+`curl -u <username>:<password> -X POST http://localhost:8100/mgmt/shared/iapp/package-management-tasks -d '{ "operation":"UNINSTALL","packageName": "GithubWebhookServer-0.2.0-0002.noarch"}'`
+
