@@ -20,7 +20,7 @@ function GheSettings() {
   this.state = {};
 }
 
-GheSettings.prototype.WORKER_URI_PATH = "shared/n8/ghe_settings";
+GheSettings.prototype.WORKER_URI_PATH = "shared/webhook/github-settings";
 GheSettings.prototype.isPublic = true;
 GheSettings.prototype.isSingleton = true;
 GheSettings.prototype.isPersisted = true;

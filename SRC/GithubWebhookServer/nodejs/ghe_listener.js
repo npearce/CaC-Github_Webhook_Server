@@ -11,7 +11,7 @@
 const logger = require('f5-logger').getInstance();
 const Queue = require('promise-queue');
 var maxConcurrent = 1;
-const gheSettingsPath = '/shared/n8/ghe_settings';
+const gheSettingsPath = '/shared/webhook/github-settings';
 const octokit = require('@octokit/rest')({
   headers: {
     accept: 'application/vnd.github.v3+json'
@@ -28,7 +28,7 @@ function GheListener() {
   this.state = {};
 }
 
-GheListener.prototype.WORKER_URI_PATH = "shared/n8/ghe_listener";
+GheListener.prototype.WORKER_URI_PATH = "shared/webhook/github-listener";
 GheListener.prototype.isPublic = true;
 GheListener.prototype.isSingleton = true;
 
@@ -655,7 +655,7 @@ GheListener.prototype.deleteServiceDefinition = function (tenant) {
         logger.info('[GheListener - DEBUG] - deleteServiceDefinition() - resp.body: ' +JSON.stringify(resp.body, '', '\t'));
       }
 
-      resolve(resp.body.results);
+      resolve(resp.body);
 
     })
     .catch((err) => {
