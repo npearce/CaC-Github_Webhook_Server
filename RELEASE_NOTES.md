@@ -1,5 +1,24 @@
 # RELEASE NOTES
 
+## v0.3.0-release
+
+### Features
+
+* Automated declaration validation via 'test branches'. Verifies the service definition would have been accepted. 
+* Automated Webhook Server settings test after configuration. Each tim esettings are applied, the webhook will phone-home to Github to verify the settings work.
+* Improved verification of AS3 declaration.
+
+### Fixes
+
+* n/a
+
+### Known Issues
+
+* Not tested with URI referenced policies.
+* Maximum concurrent unique service definitions committed at one time is unknown. The `queue_length` has not been tested beyond `10` concurrent commits.
+
+---
+
 ## v0.2.0-release
 ### Features
 
