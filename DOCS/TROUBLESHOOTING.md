@@ -34,6 +34,8 @@ Verifying the webhook:
 
 ## Verifying connectivity from BIG-IP to Github
 
+1. From the BIG-IP, make sure you can ping Github/Github Enterprise.
+
 ## Verifying GIthub Auth Token credentials
 
 1. On the BIG-IP, perform an authenticated API request using `curl`, like this:
